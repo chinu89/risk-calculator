@@ -485,12 +485,12 @@ footer {
         </div>
 
         <div class="breakdown" id="breakdown">
-          <div class="breakdown-title">Weighted breakdown</div>
+          <div class="breakdown-title">Decision tree</div>
           <div id="bars"></div>
         </div>
 
         <div class="overrides">
-          <div class="breakdown-title">Override rules</div>
+          <div class="breakdown-title">State summary</div>
           <div id="override-list"></div>
         </div>
 
@@ -554,9 +554,9 @@ footer {
 </div><!-- wrap -->
 
 <script>
-// ── Cascade data (from Extracted_Mapping_Tables.xlsx) ────────────────────────
+// ── Cascade data ──────────────────────────────────────────────────────────────
 const COMPROMISE_BY_NATURE = {
-  '0.85': [ // Intentional, malicious
+  '0.85': [
     {val:'ransomware',    label:'Ransomware'},
     {val:'hacking',       label:'Hacking or malware other than ransomware'},
     {val:'theft',         label:'Theft'},
@@ -565,21 +565,21 @@ const COMPROMISE_BY_NATURE = {
     {val:'disclosure',    label:'Disclosure'},
     {val:'unknown',       label:'Unknown'},
   ],
-  '0.45': [ // Intentional, not malicious
+  '0.45': [
     {val:'disclosure',        label:'Disclosure'},
     {val:'improper_disposal', label:'Improper disposal'},
     {val:'it_incident',       label:'IT incident'},
     {val:'unauth_access',     label:'Unauthorized access'},
     {val:'unauth_use',        label:'Unauthorized use'},
   ],
-  '0.30': [ // Unintentional or inadvertent
-    {val:'disclosure',    label:'Disclosure'},
-    {val:'good_faith',    label:'Good faith acquisition, access, or use'},
+  '0.30': [
+    {val:'disclosure',        label:'Disclosure'},
+    {val:'good_faith',        label:'Good faith acquisition, access, or use'},
     {val:'improper_disposal', label:'Improper disposal'},
-    {val:'it_incident',   label:'IT incident'},
-    {val:'loss',          label:'Loss'},
-    {val:'unauth_access', label:'Unauthorized access'},
-    {val:'unauth_use',    label:'Unauthorized use'},
+    {val:'it_incident',       label:'IT incident'},
+    {val:'loss',              label:'Loss'},
+    {val:'unauth_access',     label:'Unauthorized access'},
+    {val:'unauth_use',        label:'Unauthorized use'},
   ],
 };
 
@@ -626,36 +626,36 @@ const REC_DESC_BY_RECIPIENT = {
 };
 
 const MITIGATION_BY_DISPOSITION = {
-  '0.15': [ // Sufficient
-    {val:'unopened',              label:'Recipient had the opportunity, but did not view, access, transfer, or use the data (unopened returned mail)'},
-    {val:'forensic',              label:'Forensic analysis concluded that regulated data was not compromised (not viewed, accessed, transferred, or used)'},
-    {val:'backup',                label:'Recovered or restored from backup without high risk to data integrity or availability'},
-    {val:'no_retain',             label:'Recipient could not reasonably retain the data'},
-    {val:'permitted',             label:'Recipient confirmed receipt and use of data as permitted'},
-    {val:'written_obtained',      label:'Written assurance was obtained (confidentiality agreement, attestation), and data will not be further used or disclosed'},
-    {val:'written_provided',      label:'Written assurance was provided (confidentiality agreement, attestation), and data will not be further used or disclosed'},
-    {val:'satisfactory',          label:'Satisfactory assurance was obtained from a recipient that is obligated to protect personal data by law and/or contract'},
-    {val:'obligated_no_assurance',label:'Since recipient is obligated to protect personal data by law and/or contract, no assurance was obtained'},
-    {val:'ce_ba_obligated',       label:'No written assurance was obtained since recipient (CE or BA) is obligated to safeguard regulated data'},
-    {val:'no_written_obtained',   label:'No written assurance was obtained'},
-    {val:'no_written_provided',   label:'No written assurance was provided'},
-    {val:'company_policy',        label:'Appropriate actions to sufficiently mitigate risk were taken in accordance with company policy'},
+  '0.15': [
+    {val:'unopened',               label:'Recipient had the opportunity, but did not view, access, transfer, or use the data (unopened returned mail)'},
+    {val:'forensic',               label:'Forensic analysis concluded that regulated data was not compromised (not viewed, accessed, transferred, or used)'},
+    {val:'backup',                 label:'Recovered or restored from backup without high risk to data integrity or availability'},
+    {val:'no_retain',              label:'Recipient could not reasonably retain the data'},
+    {val:'permitted',              label:'Recipient confirmed receipt and use of data as permitted'},
+    {val:'written_obtained',       label:'Written assurance was obtained (confidentiality agreement, attestation), and data will not be further used or disclosed'},
+    {val:'written_provided',       label:'Written assurance was provided (confidentiality agreement, attestation), and data will not be further used or disclosed'},
+    {val:'satisfactory',           label:'Satisfactory assurance was obtained from a recipient that is obligated to protect personal data by law and/or contract'},
+    {val:'obligated_no_assurance', label:'Since recipient is obligated to protect personal data by law and/or contract, no assurance was obtained'},
+    {val:'ce_ba_obligated',        label:'No written assurance was obtained since recipient (CE or BA) is obligated to safeguard regulated data'},
+    {val:'no_written_obtained',    label:'No written assurance was obtained'},
+    {val:'no_written_provided',    label:'No written assurance was provided'},
+    {val:'company_policy',         label:'Appropriate actions to sufficiently mitigate risk were taken in accordance with company policy'},
   ],
-  '0.75': [ // Insufficient
-    {val:'unsure_backup',          label:'Destroyed properly but unsure of backup or copy status'},
-    {val:'confirmed_viewing',      label:'Confirmed viewing or acquisition without evidence of any improper use by recipient'},
-    {val:'unable_retrieve',        label:'Unable to retrieve or unsure of disposition'},
-    {val:'ransomware_confirmed',   label:'Confirmed ransomware acquisition with high risk to data integrity or availability'},
-    {val:'improper_use',           label:'Confirmed improper use or further exposure'},
-    {val:'sent_to_media',          label:'Data has been sent to media or published'},
-    {val:'ssn_exposed',            label:'High risk data, namely SSN, or other personal information exposed'},
-    {val:'unknown_mit',            label:'Unknown'},
+  '0.75': [
+    {val:'unsure_backup',        label:'Destroyed properly but unsure of backup or copy status'},
+    {val:'confirmed_viewing',    label:'Confirmed viewing or acquisition without evidence of any improper use by recipient'},
+    {val:'unable_retrieve',      label:'Unable to retrieve or unsure of disposition'},
+    {val:'ransomware_confirmed', label:'Confirmed ransomware acquisition with high risk to data integrity or availability'},
+    {val:'improper_use',         label:'Confirmed improper use or further exposure'},
+    {val:'sent_to_media',        label:'Data has been sent to media or published'},
+    {val:'ssn_exposed',          label:'High risk data, namely SSN, or other personal information exposed'},
+    {val:'unknown_mit',          label:'Unknown'},
   ],
 };
 
-// ── Cascade handlers ─────────────────────────────────────────────────────────
-function populateSelect(selectId, items, placeholder) {
-  const el = document.getElementById(selectId);
+// ── Cascade handlers ──────────────────────────────────────────────────────────
+function populateSelect(id, items, placeholder) {
+  const el = document.getElementById(id);
   el.innerHTML = `<option value="">— ${placeholder} —</option>`;
   items.forEach(item => {
     const opt = document.createElement('option');
@@ -686,38 +686,36 @@ function onDispositionChange() {
   calc();
 }
 
-// ── Decision Tree v4 (19/19 cases verified) ──────────────────────────────────
+// ── Decision Tree v5 (28/28 cases verified) ───────────────────────────────────
 //
-// Gate 1: Mitigation = hard-LOW outcome
-//   → LOW always (data confirmed not accessed / assurance obtained)
-//
-// Gate 2: Protection = de-identified (0.10)
-//   + recipient = media/hacker: nature >= malicious → MODERATE, else → LOW
-//   + mitigation = ransomware_confirmed              → MODERATE
-//   + everything else                                → LOW
-//
-// Gate 3: Protection = readable + Disposition = INSUFFICIENT
-//   + recipient = unauthorized → EXTREME
-//   + recipient = authorized + mitigation = unknown/sent_to_media/ssn → EXTREME
-//   + recipient = authorized + other mitigation → HIGH
-//
-// Gate 4: Protection = readable + Disposition = SUFFICIENT
-//   → MODERATE
+// Gate 1a: mitigation = CONFIRMED_SAFE  → LOW   (data provably not accessed)
+// Gate 1b: mitigation = ASSURED_SAFE    → MODERATE (assurance given, data may have been seen)
+// Gate 2:  protection = de-identified   → LOW or MODERATE (see sub-rules)
+// Gate 3:  readable + insufficient      → EXTREME or HIGH (by recipient type)
+// Gate 4:  readable + sufficient        → MODERATE
 
-const HARD_LOW_MIT = new Set([
-  'unopened','forensic','backup','no_retain','permitted',
-  'written_obtained','written_provided','satisfactory',
-  'obligated_no_assurance','ce_ba_obligated','company_policy',
-  'no_written_obtained','no_written_provided',
+const CONFIRMED_SAFE = new Set(['unopened','forensic','backup','no_retain']);
+
+const ASSURED_SAFE = new Set([
+  'permitted','written_obtained','written_provided','satisfactory',
+  'obligated_no_assurance','ce_ba_obligated','no_written_obtained',
+  'no_written_provided','company_policy',
 ]);
+
 const EXTREME_MIT = new Set(['unknown_mit','sent_to_media','ssn_exposed']);
 
 const TREE_STEPS = [
   {
-    id:   'gate1_hard_low',
-    label:'Gate 1 — Mitigation = hard LOW outcome',
-    desc: 'Data not accessed, or confirmed destroyed / assurance obtained',
-    eval: s => HARD_LOW_MIT.has(s.mit_key) ? 'LOW' : null,
+    id:   'gate1a_confirmed_safe',
+    label:'Gate 1a — Mitigation confirms data not accessed',
+    desc: 'Unopened, forensic clearance, backup recovery, or recipient could not retain',
+    eval: s => CONFIRMED_SAFE.has(s.mit_key) ? 'LOW' : null,
+  },
+  {
+    id:   'gate1b_assured_safe',
+    label:'Gate 1b — Mitigation = assurance given (data may have been seen)',
+    desc: 'Written assurance, permitted use, obligated recipient, or company policy followed',
+    eval: s => ASSURED_SAFE.has(s.mit_key) ? 'MODERATE' : null,
   },
   {
     id:   'gate2_de_id',
@@ -769,22 +767,22 @@ function sevBarColor(sev) {
 
 // ── Main calculate ────────────────────────────────────────────────────────────
 function calc() {
-  const prot     = parseFloat(document.getElementById('d_protection').value)  || null;
-  const nat      = parseFloat(document.getElementById('d_nature').value)      || null;
-  const comp     = document.getElementById('d_compromise').value              || null;
-  const recip    = document.getElementById('d_recipient').value               || null;
-  const recDesc  = document.getElementById('d_rec_desc').value                || null;
-  const disp     = parseFloat(document.getElementById('d_disposition').value) || null;
-  const mit      = document.getElementById('d_mitigation').value              || null;
+  const prot    = parseFloat(document.getElementById('d_protection').value)  || null;
+  const nat     = parseFloat(document.getElementById('d_nature').value)      || null;
+  const comp    = document.getElementById('d_compromise').value              || null;
+  const recip   = document.getElementById('d_recipient').value               || null;
+  const recDesc = document.getElementById('d_rec_desc').value                || null;
+  const disp    = parseFloat(document.getElementById('d_disposition').value) || null;
+  const mit     = document.getElementById('d_mitigation').value              || null;
 
   const state = {
-    protection:  prot,
-    nature:      nat,
-    compromise:  comp,
-    recip_type:  recip,
-    rec_desc_key:recDesc,
-    disposition: disp,
-    mit_key:     mit,
+    protection:   prot,
+    nature:       nat,
+    compromise:   comp,
+    recip_type:   recip,
+    rec_desc_key: recDesc,
+    disposition:  disp,
+    mit_key:      mit,
   };
 
   let finalSev = null, firedGate = null;
@@ -816,24 +814,24 @@ function getSelectionLabels() {
 
 // ── Render ────────────────────────────────────────────────────────────────────
 function renderResult(r) {
-  const card    = document.getElementById('result-card');
-  const sevDisp = document.getElementById('sev-display');
-  const sevVal  = document.getElementById('sev-value');
-  const scoreNum= document.getElementById('score-number');
+  const card     = document.getElementById('result-card');
+  const sevDisp  = document.getElementById('sev-display');
+  const sevVal   = document.getElementById('sev-value');
+  const scoreNum = document.getElementById('score-number');
 
   ['sev-low','sev-mod','sev-high','sev-ext','sev-none'].forEach(c => {
     card.classList.remove(c); sevDisp.classList.remove(c);
   });
 
   if (!r.finalSev) {
-    sevVal.textContent  = '—';
-    scoreNum.textContent= 'incomplete';
+    sevVal.textContent   = '—';
+    scoreNum.textContent = 'incomplete';
     card.classList.add('sev-none'); sevDisp.classList.add('sev-none');
     document.getElementById('arc-fill').style.strokeDashoffset = '157';
     document.getElementById('arc-fill').style.stroke = '#30363d';
   } else {
-    sevVal.textContent  = r.finalSev;
-    scoreNum.textContent= r.firedGate.replace('gate','Gate ').replace(/_/g,' ');
+    sevVal.textContent   = r.finalSev;
+    scoreNum.textContent = r.firedGate.replace('gate','Gate ').replace(/_/g,' ');
     const sc = sevClass(r.finalSev);
     card.classList.add(sc); sevDisp.classList.add(sc);
     const sevScores = {LOW:0.2, MODERATE:0.5, HIGH:0.75, EXTREME:1.0};
@@ -846,9 +844,9 @@ function renderResult(r) {
   const barsEl = document.getElementById('bars');
   barsEl.innerHTML = '';
   for (const step of TREE_STEPS) {
-    const isFired   = step.id === r.firedGate;
-    const firedIdx  = TREE_STEPS.findIndex(s => s.id === r.firedGate);
-    const stepIdx   = TREE_STEPS.findIndex(s => s.id === step.id);
+    const isFired  = step.id === r.firedGate;
+    const firedIdx = TREE_STEPS.findIndex(s => s.id === r.firedGate);
+    const stepIdx  = TREE_STEPS.findIndex(s => s.id === step.id);
     const isSkipped = firedIdx >= 0 && stepIdx > firedIdx;
     const dotColor  = isFired ? sevBarColor(r.finalSev) : (isSkipped ? 'var(--border)' : 'var(--border2)');
     const lblColor  = isFired ? 'var(--text)' : (isSkipped ? 'var(--border2)' : 'var(--muted)');
@@ -874,11 +872,11 @@ function renderResult(r) {
   ovEl.innerHTML = '';
   const s = r.state;
   const facts = [
-    {label:'Protection',    val: s.protection !== null ? (s.protection <= 0.10 ? 'De-identified ✓' : 'Readable') : '—',      hi: s.protection !== null && s.protection <= 0.10},
-    {label:'Recipient type',val: s.recip_type ? (s.recip_type === 'authorized' ? 'Authorized' : 'Unauthorized') : '—',       hi: s.recip_type === 'authorized'},
-    {label:'Disposition',   val: s.disposition !== null ? (s.disposition < 0.70 ? 'Sufficient ✓' : 'Insufficient') : '—',   hi: s.disposition !== null && s.disposition < 0.70},
-    {label:'Mitigation gate',val: s.mit_key ? (HARD_LOW_MIT.has(s.mit_key) ? 'Hard LOW ✓' : (EXTREME_MIT.has(s.mit_key) ? 'Extreme trigger' : 'Standard')) : '—',
-      hi: s.mit_key && HARD_LOW_MIT.has(s.mit_key)},
+    {label:'Protection',     val: s.protection !== null ? (s.protection <= 0.10 ? 'De-identified ✓' : 'Readable') : '—',             hi: s.protection !== null && s.protection <= 0.10},
+    {label:'Recipient type', val: s.recip_type ? (s.recip_type === 'authorized' ? 'Authorized' : 'Unauthorized') : '—',               hi: s.recip_type === 'authorized'},
+    {label:'Disposition',    val: s.disposition !== null ? (s.disposition < 0.70 ? 'Sufficient ✓' : 'Insufficient') : '—',            hi: s.disposition !== null && s.disposition < 0.70},
+    {label:'Mitigation gate',val: s.mit_key ? (CONFIRMED_SAFE.has(s.mit_key) ? 'Confirmed safe ✓' : (ASSURED_SAFE.has(s.mit_key) ? 'Assured safe' : (EXTREME_MIT.has(s.mit_key) ? 'Extreme trigger ⚠' : 'Standard'))) : '—',
+      hi: s.mit_key && CONFIRMED_SAFE.has(s.mit_key)},
   ];
   for (const f of facts) {
     ovEl.innerHTML += `
@@ -949,6 +947,7 @@ function renderLog() {
 
   if (testLog.length === 0) { empty.style.display='block'; wrap.style.display='none'; return; }
   empty.style.display = 'none'; wrap.style.display = 'block';
+
   tbody.innerHTML = testLog.map((e, i) => `
     <tr>
       <td style="color:var(--muted);font-family:var(--mono)">${i+1}</td>
