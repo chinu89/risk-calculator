@@ -706,18 +706,32 @@ const TREE_STEPS = [
     label:'Gate 1a — Mitigation confirms data not accessed',
     desc:'Unopened, forensic, backup, no_retain — or satisfactory assurance from a legally obligated recipient',
     eval: s => {
-      if (CONFIRMED_SAFE.has(s.mit_key)) return 'LOW';
-      if (s.mit_key === 'satisfactory' && LEGALLY_OBLIGATED.has(s.rec_desc_key)) return 'LOW';
-      return null;
+      let result = null;
+      if (CONFIRMED_SAFE.has(s.mit_key)) result = 'LOW';
+      else if (s.mit_key === 'satisfactory' && LEGALLY_OBLIGATED.has(s.rec_desc_key)) result = 'LOW';
+      if (result === 'LOW' &&
+          s.compromise === 'ransomware' &&
+          s.protection > 0.10 &&
+          (s.rec_desc_key === 'hacker' || s.rec_desc_key === 'media')) {
+        return 'MODERATE';
+      }
+      return result;
     },
   },
   {
     id:'gate1b_assured_safe',
     label:'Gate 1b — Mitigation = assurance given',
-    desc:'Written assurance / permitted use / policy — de-identified data → LOW; readable data → MODERATE',
+    desc:'Written assurance / permitted use / policy — de-identified data → LOW; readable data → MODERATE; ransomware + hacker/media → MODERATE',
     eval: s => {
       if (!ASSURED_SAFE.has(s.mit_key)) return null;
-      return (s.protection !== null && s.protection <= 0.10) ? 'LOW' : 'MODERATE';
+      let result = (s.protection !== null && s.protection <= 0.10) ? 'LOW' : 'MODERATE';
+      if (result === 'LOW' &&
+          s.compromise === 'ransomware' &&
+          s.protection > 0.10 &&
+          (s.rec_desc_key === 'hacker' || s.rec_desc_key === 'media')) {
+        result = 'MODERATE';
+      }
+      return result;
     },
   },
   {
