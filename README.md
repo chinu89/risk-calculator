@@ -2,7 +2,9 @@
 
 **Project:** In-house replacement for RadarFirst  
 **Owner:** Gawde & Gawde Computer Services  
-**File:** `risk-calculator.html` — single-file, zero dependencies, deployable on GitHub Pages
+**File:** `risk-calculator.html` — single-file, zero dependencies, deployable on GitHub Pages  
+**Tree version:** v8  
+**Verified test cases:** 43/43
 
 ---
 
@@ -10,272 +12,251 @@
 
 This calculator replicates the risk severity output of the RadarFirst breach assessment tool. It takes 7 inputs about a data breach incident and returns a severity level of **LOW**, **MODERATE**, **HIGH**, or **EXTREME**.
 
-The logic was reverse-engineered entirely from empirical testing — running known inputs through RadarFirst, recording the outputs, and iterating the model until it matched. As of the last test batch, the model matches **28 out of 28** verified test cases.
+The logic was reverse-engineered entirely from empirical testing — running known inputs through RadarFirst, recording the outputs, and iterating until every case matched. The model is a **priority-ordered decision tree**, not a weighted score. It went through 8 iterations (v1–v8) across 6 test batches to reach 43/43 accuracy.
 
 ---
 
 ## The 7 Input Dimensions
 
-| # | Dimension | Purpose in logic |
+| # | Dimension | Role in tree |
 |---|---|---|
-| 1 | Protection Measure | Gate 2 trigger — de-identified data changes the entire risk profile |
-| 2 | Incident Nature | Filters the Compromise dropdown; used in Gate 2 sub-rule |
-| 3 | Compromise Description | Context only — does not directly affect the tree result |
-| 4 | Recipient | Filters the Recipient Description dropdown; determines authorized vs unauthorized |
-| 5 | Recipient Description | Gate 3 sub-rule — specific recipient affects EXTREME vs HIGH |
+| 1 | Protection Measure | Gate 2 trigger — de-identified (score 0.10) changes the entire risk profile |
+| 2 | Incident Nature | Filters Compromise dropdown; used in Gate 2 sub-rule for malicious intent |
+| 3 | Compromise Description | Feeds the ransomware + hacker/media exception on Gates 1a and 1b |
+| 4 | Recipient | Filters Recipient Description dropdown; determines authorized vs unauthorized |
+| 5 | Recipient Description | Gate 1a legally-obligated check; Gate 2 hacker/media check; Gate 3 EXTREME vs HIGH |
 | 6 | Disposition | Gate 3 and Gate 4 trigger — sufficient vs insufficient |
-| 7 | Mitigation Name | Gates 1a and 1b — the single most decisive input |
+| 7 | Mitigation Name | **Most decisive input** — determines which gate fires and at what severity |
+
+All three dependent dropdowns (Compromise, Recipient Description, Mitigation) cascade automatically based on their parent selection, mirroring exactly what RadarFirst shows.
 
 ---
 
 ## Decision Tree Logic
 
-The model is a **priority-ordered decision tree**, not a weighted score. Each gate is evaluated top-to-bottom and the first gate that fires determines the final result. Later gates are never evaluated once an earlier one fires.
+Gates are evaluated top-to-bottom. The first gate that returns a non-null result wins — later gates are never evaluated.
 
 ```
 Gate 1a → Gate 1b → Gate 2 → Gate 3 → Gate 4
 ```
 
+---
+
 ### Gate 1a — Mitigation confirms data was not accessed
-**Result: LOW**
 
-Fires when the mitigation outcome is one of:
-- `unopened` — returned mail, recipient did not view/access/transfer/use the data
-- `forensic` — forensic analysis confirmed data was not compromised
-- `backup` — recovered from backup without high risk to integrity or availability
-- `no_retain` — recipient could not reasonably retain the data
+**Fires when** mitigation is one of: `unopened`, `forensic`, `backup`, `no_retain`  
+**Also fires when** mitigation = `satisfactory` AND recipient is legally obligated (see LEGALLY_OBLIGATED set below)
 
-**Rationale:** These mitigations provide objective confirmation that the data never reached an unauthorised party or was immediately and verifiably controlled. RadarFirst treats this as a hard LOW regardless of how bad the other inputs look — even plain text + malicious incident + hacker recipient, if forensically confirmed not accessed, resolves to LOW.
+**Normal result: LOW**
+
+**Exception — ransomware + hacker/media + readable data → MODERATE**  
+When `compromise = ransomware` AND `recipient = hacker or media` AND `protection > 0.10`, Gate 1a returns MODERATE instead of LOW. Ransomware can encrypt and exfiltrate silently — "unopened mail" does not apply because the malware does not require a human to open anything. This exception does not apply when protection is de-identified (0.10) because unreadable data neutralises the risk regardless.
+
+**Rationale for the base rule:** These mitigations provide objective, verifiable proof that data never reached a harmful state. They are the only mitigations in the entire tree that give forensic or physical certainty. RadarFirst treats them as a hard LOW overriding all other inputs — even plain text + malicious + hacker resolves LOW if data was forensically confirmed not accessed.
+
+**Why `satisfactory` lives here (not Gate 1b):** The full mitigation label is "Satisfactory assurance was obtained from a recipient that is obligated to protect personal data by law and/or contract." This is only legally meaningful when the recipient actually has that obligation — covered entities, business associates, federal agencies. For recipients with no legal obligation (general public, vendor, attorney), `satisfactory` drops to Gate 1b and returns MODERATE.
 
 ---
 
 ### Gate 1b — Mitigation = assurance given (data may have been seen)
-**Result: MODERATE**
 
-Fires when the mitigation outcome is one of:
-- `permitted` — recipient confirmed receipt and use of data as permitted
-- `written_obtained` — written assurance / confidentiality agreement obtained
-- `written_provided` — written assurance provided
-- `satisfactory` — satisfactory assurance from legally obligated recipient
-- `obligated_no_assurance` — recipient legally obligated, no assurance obtained
-- `ce_ba_obligated` — CE or BA obligated to safeguard, no written assurance
-- `no_written_obtained` — no written assurance was obtained
-- `no_written_provided` — no written assurance was provided
-- `company_policy` — appropriate company policy actions taken
+**Fires when** mitigation is one of: `permitted`, `written_obtained`, `written_provided`, `satisfactory` (non-obligated recipient), `obligated_no_assurance`, `ce_ba_obligated`, `no_written_obtained`, `no_written_provided`, `company_policy`
 
-**Rationale:** These mitigations indicate the data did or may have reached the recipient, but some form of assurance or legal obligation is in place. Unlike Gate 1a, the data was not confirmed absent — it was merely contained after the fact. RadarFirst consistently returns MODERATE for this bucket regardless of other inputs (protection level, incident nature, recipient).
+**Result:**
+- Protection = de-identified (0.10) → **LOW**
+- Protection = readable → **MODERATE**
+- Exception: ransomware + hacker/media + readable → **MODERATE** (same exception as Gate 1a)
 
-**Key distinction from Gate 1a:** Gate 1a = data provably never read. Gate 1b = data may have been read, but promises were made.
+**Rationale:** These mitigations indicate data may have reached the recipient but containment was attempted through promises or legal obligation. Unlike Gate 1a, there is no proof of non-access — only assurance. RadarFirst consistently returns MODERATE for readable data in this group.
+
+**Why de-identified + assurance = LOW:** If data is de-identified, even a failed assurance causes no individual harm — the data cannot be traced back to a person. RadarFirst applies this logic regardless of how bad the other inputs look.
+
+**Key distinction:** Gate 1a = data provably never read. Gate 1b = data may have been read but was contained.
 
 ---
 
 ### Gate 2 — Protection = de-identified
-**Result: LOW or MODERATE**
 
-Fires when `protection score = 0.10` (Statistically de-identified).
+**Fires when** `protection = 0.10` (Statistically de-identified) AND Gates 1a/1b did not fire
 
-Sub-rules:
-- **Recipient = Media AND incident = Intentional malicious** → MODERATE
-- **Recipient = Hacker or thief AND incident = Intentional malicious** → MODERATE
-- **Mitigation = ransomware_confirmed** → MODERATE
-- **Everything else** → LOW
+**Sub-rules (evaluated in order):**
 
-**Rationale:** De-identified data cannot be traced back to an individual, so harm probability is very low regardless of how the data was lost or who received it. The only exceptions are cases where a high-risk recipient with clear malicious intent (Media publishing, Hacker) received it, or where ransomware with confirmed acquisition occurred — in those cases RadarFirst returns MODERATE as a floor.
+| Condition | Result |
+|---|---|
+| Recipient = hacker/media AND nature = malicious (≥0.80) AND mitigation = `ransomware_confirmed` | HIGH |
+| Recipient = hacker/media AND nature = malicious (≥0.80) AND mitigation in GATE2_BAD_MIT | MODERATE |
+| Recipient = hacker/media AND nature = malicious (≥0.80) AND any other mitigation | LOW |
+| Recipient = hacker/media AND nature NOT malicious (<0.80) | LOW |
+| Recipient = anything else AND mitigation = `ransomware_confirmed` | MODERATE |
+| Everything else | LOW |
 
-**Important:** This gate only fires if Gates 1a and 1b did not fire first. A de-identified incident with a `written_obtained` mitigation would be caught by Gate 1b (MODERATE) before reaching Gate 2.
+**GATE2_BAD_MIT** = `unable_retrieve`, `improper_use`, `sent_to_media`, `unknown_mit`, `ssn_exposed`, `ransomware_confirmed`
+
+**Rationale:** De-identified data cannot be traced back to an individual — default is LOW. Exceptions escalate only when a high-risk recipient received it with clear malicious intent. Incident nature matters here because an unintentional disclosure to media is fundamentally different from a deliberate theft by a hacker.
 
 ---
 
 ### Gate 3 — Readable data + insufficient disposition
-**Result: EXTREME or HIGH**
 
-Fires when:
-- Protection score > 0.10 (data is readable — redacted, limited set, physical safeguard, or plain text)
-- AND disposition = Insufficient or unknown risk mitigation
+**Fires when** `protection > 0.10` AND `disposition = Insufficient` AND Gates 1a/1b did not fire
 
-Sub-rules within Gate 3:
-- **Recipient type = Unauthorized** → EXTREME
-- **Recipient type = Authorized AND mitigation = `unknown_mit`, `sent_to_media`, or `ssn_exposed`** → EXTREME
-- **Recipient type = Authorized AND any other insufficient mitigation** → HIGH
+**Sub-rules:**
 
-**Rationale:** When readable data ends up in insufficient disposition, the question becomes who received it. Unauthorised recipients (vendors, hackers, media, unknown individuals, general public) have no accountability — that is always EXTREME. Authorised recipients (covered entities, business associates) have legal obligations even if disposition was insufficient, so the result is HIGH rather than EXTREME — unless the mitigation outcome itself indicates catastrophic exposure (data published to media, SSN exposed, completely unknown outcome).
+| Condition | Result |
+|---|---|
+| Recipient type = unauthorized (any description) | EXTREME |
+| Recipient type = authorized AND mitigation in G3_EXTREME | EXTREME |
+| Recipient type = authorized AND mitigation in G3_HIGH | HIGH |
+| Recipient type = authorized AND mitigation in G3_MODERATE | MODERATE |
+| Recipient type = authorized AND any other mitigation | HIGH (default) |
+
+**G3_EXTREME** = `improper_use`, `unknown_mit`, `sent_to_media`, `ssn_exposed`  
+**G3_HIGH** = `unable_retrieve`  
+**G3_MODERATE** = `confirmed_viewing`, `ransomware_confirmed`, `unsure_backup`
+
+**Rationale — unauthorized always EXTREME:** Unauthorized recipients (vendors, hackers, media, general public, relatives, customers) have no legal accountability for the data. Readable data reaching them in insufficient disposition is always EXTREME.
+
+**Rationale — authorized three-tier:** Authorized recipients (covered entities, business associates, federal agencies) have statutory obligations. Even with insufficient disposition, some constraint exists. The severity then depends on what we know happened:
+
+- **EXTREME** = confirmed serious harm: data misused, catastrophic public exposure, or completely unknown outcome
+- **HIGH** = unresolved: we could not retrieve the data and don't know what happened
+- **MODERATE** = low evidence of harm: data was seen but no misuse confirmed, or uncertainty about copies
 
 ---
 
 ### Gate 4 — Readable data + sufficient disposition (fallthrough)
+
+**Fires when** `protection > 0.10` AND `disposition = Sufficient` AND nothing fired above
+
 **Result: MODERATE**
 
-Fires when:
-- Protection score > 0.10 (readable data)
-- AND disposition = Sufficient risk mitigation
-- AND mitigation key was not caught by Gates 1a or 1b
-
-**Rationale:** If data is readable but disposition was sufficient and the specific mitigation didn't qualify for Gate 1a or 1b, the situation is controlled but not confirmed. MODERATE is the baseline for "we handled it but can't fully confirm no harm occurred."
-
-In practice, most sufficient disposition cases are caught by Gates 1a or 1b. Gate 4 serves as a safety net for any edge cases not yet mapped.
+**Note:** In 43 verified test cases, Gate 4 has never fired in practice. Every sufficient mitigation in RadarFirst belongs to either CONFIRMED_SAFE (Gate 1a) or ASSURED_SAFE (Gate 1b). Gate 4 is a safety net for any future mitigation option that does not fit either bucket.
 
 ---
 
-## Mitigation Buckets — Quick Reference
+## Mitigation Buckets — Complete Reference
 
-| Bucket | Keys | Gate | Result |
+### CONFIRMED_SAFE → Gate 1a → LOW
+`unopened`, `forensic`, `backup`, `no_retain`  
+Plus: `satisfactory` when recipient is in LEGALLY_OBLIGATED
+
+### ASSURED_SAFE → Gate 1b → LOW (de-id) or MODERATE (readable)
+`permitted`, `written_obtained`, `written_provided`, `satisfactory` (non-obligated recipient),  
+`obligated_no_assurance`, `ce_ba_obligated`, `no_written_obtained`, `no_written_provided`, `company_policy`
+
+### Gate 3 sub-buckets (authorized + insufficient only)
+
+| Bucket | Keys | Result |
+|---|---|---|
+| G3_EXTREME | `improper_use`, `unknown_mit`, `sent_to_media`, `ssn_exposed` | EXTREME |
+| G3_HIGH | `unable_retrieve` | HIGH |
+| G3_MODERATE | `confirmed_viewing`, `ransomware_confirmed`, `unsure_backup` | MODERATE |
+
+### LEGALLY_OBLIGATED recipients (affects Gate 1a satisfactory rule)
+`covered_entity`, `business_associate`, `ba_state_gov`, `federal_agency`, `ohca`,  
+`self_insured_sponsor`, `fully_insured_sponsor`, `reg_investment_advisor`, `state_gov`, `employee`
+
+---
+
+## Key Design Decisions
+
+### Why a decision tree, not a weighted score
+
+The first version used a weighted score across all 7 dimensions. It failed 3/3 on the first test batch. The core problem: RadarFirst does not average inputs. Mitigation outcome dominates everything else. A case with the worst-possible protection, most malicious intent, and most dangerous recipient still returns LOW if forensic analysis confirmed no compromise. No weighted score can replicate that.
+
+### Why mitigation is the most important input
+
+Mitigation reflects what actually happened after the breach — the outcome, not the setup. RadarFirst is fundamentally answering "given what we now know, how much harm occurred?" rather than "given the circumstances, how likely is harm?" Even terrible inputs (ransomware, plain text, hacker) can resolve LOW if the outcome was confirmed safe.
+
+### Why `satisfactory` is split between Gate 1a and Gate 1b
+
+The word "satisfactory" in the mitigation label is modified by "from a recipient that is obligated to protect personal data by law and/or contract." That legal obligation is what makes it reliable — for legally bound recipients it is equivalent to a physical confirmation, for others it is just a promise.
+
+### Why the ransomware + hacker/media exception exists
+
+Observed empirically from batch 6. Ransomware does not require a human to open a file — it encrypts and exfiltrates autonomously. The `unopened` mitigation was designed for physical mail and email contexts. For ransomware, the concept does not apply. RadarFirst returns MODERATE in this specific combination rather than LOW.
+
+### Why Gate 3 has three severity levels for authorized recipients
+
+Discovered in batch 5. Previously all authorized + insufficient cases returned HIGH. Batches 4 and 5 revealed that the specific mitigation outcome within insufficient disposition changes the result — confirmed misuse is EXTREME, unresolved situation is HIGH, and low-evidence scenarios are MODERATE. The distinction reflects "what do we actually know happened?"
+
+---
+
+## Version History
+
+| Version | Cases verified | Key change |
+|---|---|---|
+| v1 | 0/3 | Weighted score model — wrong approach |
+| v2 | 3/3 | Decision tree introduced — mitigation as primary gate |
+| v3 | 10/10 | Gate 2 refined — de-id sub-rules added |
+| v4 | 19/19 | Gate 3 authorized vs unauthorized split; incident nature in Gate 2 |
+| v5 | 28/28 | Gate 1 split into 1a (confirmed) and 1b (assured) |
+| v6 | 34/34 | `satisfactory` splits by legal obligation; Gate 1b modulated by protection; Gate 2 mitigation sub-rules |
+| v7 | 39/39 | Gate 3 authorized+insufficient splits into EXTREME / HIGH / MODERATE by mitigation |
+| v8 | 43/43 | Ransomware + hacker/media exception on Gates 1a and 1b |
+
+---
+
+## Test Batches Summary
+
+| Batch | Cases | Result | Key discovery |
 |---|---|---|---|
-| CONFIRMED_SAFE | unopened, forensic, backup, no_retain | 1a | LOW |
-| ASSURED_SAFE | permitted, written_obtained, written_provided, satisfactory, obligated_no_assurance, ce_ba_obligated, no_written_obtained, no_written_provided, company_policy | 1b | MODERATE |
-| EXTREME_MIT | unknown_mit, sent_to_media, ssn_exposed | 3 sub-rule | EXTREME (when in gate 3) |
-| Insufficient-other | unsure_backup, confirmed_viewing, unable_retrieve, ransomware_confirmed, improper_use | 3 default | HIGH or EXTREME |
+| Original (O1–O3) | 3 | 0/3 → fixed | Weighted score wrong; tree approach needed |
+| Batch 1 (P1–P7) | 7 | 7/7 | Gate 2 structure confirmed |
+| Batch 2 (N1–N9) | 9 | 9/9 | Authorized vs unauthorized split in Gate 3 |
+| Batch 3 (Q1–Q9) | 9 | 9/9 | Gate 1a/1b split discovered |
+| Batch 4 (R1–R6) | 6 | 6/6 | `satisfactory` legal-obligation rule; de-id+assurance=LOW; Gate 2 mitigation refinement |
+| Batch 5 (S1–S5) | 5 | 5/5 | Gate 3 three-tier split; N1 reading corrected |
+| Batch 6 (T1–T4) | 4 | 4/4 | Ransomware+hacker/media exception |
+| **Total** | **43** | **43/43** | |
 
 ---
 
 ## Cascading Dropdown Relationships
 
-The UI uses smart cascading dropdowns to mirror exactly what RadarFirst shows:
-
 ```
 Incident Nature selected
-    └─→ Compromise Description options filter to valid values for that nature
+    └─→ Compromise Description shows only valid options for that nature
 
 Recipient selected
-    └─→ Recipient Description options filter to valid descriptions for that recipient type
+    └─→ Recipient Description shows only valid options for authorized or unauthorized
 
 Disposition selected
-    └─→ Mitigation Name options filter to only sufficient or insufficient mitigations
+    └─→ Mitigation Name shows only sufficient or insufficient mitigations
 ```
 
-These mappings come directly from the `Extracted_Mapping_Tables.xlsx` file and match the RadarFirst UI exactly.
+Mappings come directly from `Extracted_Mapping_Tables.xlsx` and match RadarFirst exactly.
 
 ---
 
-## Test Case Log
+## Built-in Test Log
 
-The calculator has a built-in test log. For each case:
+For each test case:
 
 1. Select all 7 inputs to match what you entered in RadarFirst
-2. Record the RadarFirst output using the LOW / MOD / HIGH / EXT buttons
-3. Click **+ Log Current Case** — the case is saved with MATCH or MISMATCH status
-4. **Export CSV** downloads the full log for analysis
-
-The CSV columns are: Protection, Incident Nature, Compromise, Recipient Description, Disposition, Mitigation, Gate Fired, Our Result, RadarFirst, Match.
-
----
-
-## Verified Test Cases Summary
-
-| Batch | Cases tested | Matches | Notes |
-|---|---|---|---|
-| Batch 1 | 3 | 0/3 | Initial weighted-score model — wrong approach |
-| Batch 2 | 7 | 5/7 | Decision tree introduced — gate structure established |
-| Batch 3 | 9 | 7/9 | Gate 1 split into 1a/1b — assured vs confirmed safe |
-| **Total** | **28** | **28/28** | All historical cases verified against final v5 tree |
+2. Click the LOW / MOD / HIGH / EXT button to record the RadarFirst output
+3. Click **+ Log Current Case** — saves with MATCH or MISMATCH and the gate that fired
+4. **Export CSV** downloads the full log for offline analysis
 
 ---
 
 ## Multi-Country / Multi-Region Support
 
-### What would change
+### What stays the same (zero code changes needed)
 
-RadarFirst shows different dropdown options depending on the country or regulatory framework. For example:
+The tree only checks these structural signals — none reference label strings:
 
-- **US (HIPAA)** uses concepts like "covered entity", "business associate", "PHI"
-- **EU (GDPR)** uses "data controller", "data processor", "supervisory authority"
-- **Canada (PIPEDA)** has different "significant harm" thresholds
-- **Australia (Privacy Act)** has different notifiable data breach criteria
+1. `protection ≤ 0.10` — de-identified
+2. `disposition ≥ 0.70` — insufficient
+3. `recip_type` = authorized or unauthorized
+4. `mit_key` bucket membership — CONFIRMED_SAFE, ASSURED_SAFE, G3_EXTREME, G3_HIGH, G3_MODERATE
+5. `nature ≥ 0.80` — malicious intent (Gate 2 sub-rule)
+6. `rec_desc_key` in LEGALLY_OBLIGATED (Gate 1a satisfactory rule)
+7. `compromise = ransomware` with hacker/media + readable (Gate 1a/1b exception)
 
-The option labels, the available choices, and sometimes the entire concept structure differ between regions.
+### What changes (config layer)
 
-### What would NOT need to change
-
-The decision tree logic itself is fully generic. It only cares about five structural signals:
-
-1. Is `protection` ≤ 0.10? (de-identified)
-2. Is `disposition` ≥ 0.70? (insufficient)
-3. Is `recip_type` = `authorized` or `unauthorized`?
-4. Which bucket does `mit_key` belong to — CONFIRMED_SAFE, ASSURED_SAFE, or EXTREME_MIT?
-5. Is `nature` ≥ 0.80? (malicious intent — used only in Gate 2 sub-rule)
-
-None of these checks reference specific label strings. The tree code in `risk-calculator.html` would be **zero-change** for multi-region support.
-
-### What WOULD need to change — Region Config
-
-Each region would need its own configuration object containing:
-
-```json
-{
-  "region": "US_HIPAA",
-  "label": "United States (HIPAA)",
-
-  "protection_scores": {
-    "Statistically de-identified": 0.10,
-    "Redacted": 0.20,
-    "Limited data set": 0.30,
-    "Under physical safeguard": 0.25,
-    "In plain text": 0.85
-  },
-
-  "nature_scores": {
-    "Intentional, malicious": 0.85,
-    "Intentional, not malicious": 0.45,
-    "Unintentional or inadvertent": 0.30
-  },
-
-  "compromise_by_nature": {
-    "Intentional, malicious": ["Ransomware", "Hacking or malware...", "Theft", ...],
-    "Intentional, not malicious": ["Disclosure", "Improper disposal", ...],
-    "Unintentional or inadvertent": ["Disclosure", "Good faith acquisition...", ...]
-  },
-
-  "recipient_types": {
-    "authorized": "Generally authorized person or organization",
-    "unauthorized": "Unauthorized person, organization, or unknown"
-  },
-
-  "rec_desc_by_recipient": {
-    "authorized": [
-      { "val": "covered_entity", "label": "Covered entity" },
-      ...
-    ],
-    "unauthorized": [
-      { "val": "hacker", "label": "Hacker or thief" },
-      { "val": "media", "label": "Media" },
-      ...
-    ]
-  },
-
-  "disposition_values": {
-    "sufficient": { "val": "0.15", "label": "Sufficient risk mitigation" },
-    "insufficient": { "val": "0.75", "label": "Insufficient or unknown risk mitigation" }
-  },
-
-  "mitigation_by_disposition": {
-    "sufficient": [
-      { "val": "unopened", "label": "Recipient had the opportunity, but did not view..." },
-      { "val": "written_obtained", "label": "Written assurance was obtained..." },
-      ...
-    ],
-    "insufficient": [
-      { "val": "ransomware_confirmed", "label": "Confirmed ransomware acquisition..." },
-      ...
-    ]
-  },
-
-  "confirmed_safe_mitigations": ["unopened", "forensic", "backup", "no_retain"],
-  "assured_safe_mitigations": ["permitted", "written_obtained", ...],
-  "extreme_mitigations": ["unknown_mit", "sent_to_media", "ssn_exposed"],
-  "high_risk_recipients": ["hacker", "media"]
-}
-```
-
-### Implementation steps for multi-region
-
-1. **Extract the config** — move all five hardcoded data objects out of the HTML into a `configs/` folder, one JSON file per region (e.g. `us_hipaa.json`, `eu_gdpr.json`)
-
-2. **Add a region selector** — a dropdown at the top of the calculator UI to select the active region
-
-3. **Load config on region change** — when the region changes, fetch the JSON and re-populate all dropdowns and bucket sets
-
-4. **Re-run empirical testing per region** — the tree structure will likely hold (it's based on universal risk logic), but specific gate thresholds (e.g. whether a particular GDPR mitigation is CONFIRMED_SAFE or ASSURED_SAFE) will need verification against RadarFirst's outputs for that region
-
-5. **Spring Boot integration** — in the production rule engine, expose a `/api/regions` endpoint that returns the available configs, and a `/api/assess` endpoint that accepts region + 7 inputs and returns the severity
+Each region needs its own JSON config defining: protection scores, nature scores, compromise-by-nature mapping, recipient-by-type mapping, mitigation-by-disposition mapping, and the six bucket sets (CONFIRMED_SAFE, ASSURED_SAFE, G3_EXTREME, G3_HIGH, G3_MODERATE, LEGALLY_OBLIGATED).
 
 ### Estimated effort
 
@@ -283,7 +264,7 @@ Each region would need its own configuration object containing:
 |---|---|
 | Extract configs from HTML | 1–2 hours |
 | Add region selector to UI | 2–3 hours |
-| Mapping one new region (GDPR) | 3–5 hours (config) + test cases |
+| Map one new region (GDPR) | 3–5 hours config + empirical testing |
 | Spring Boot config API | 1 day |
 | Full multi-region production system | 3–5 days |
 
@@ -294,6 +275,9 @@ Each region would need its own configuration object containing:
 ```
 risk-calculator.html          ← single deployable file (GitHub Pages)
 README.md                     ← this file
+test_cases.json               ← all 43 verified cases with full inputs and RF results
+new_test_cases.json           ← 72 generated test cases pending RF verification
+remaining_test_cases.csv      ← remaining cases with v8 predictions, changed cases flagged
 risk_test_log_*.csv           ← exported test logs from each testing batch
 Extracted_Mapping_Tables.xlsx ← source of truth for dropdown cascade mappings
 ```
@@ -305,15 +289,47 @@ Extracted_Mapping_Tables.xlsx ← source of truth for dropdown cascade mappings
 1. Rename `risk-calculator.html` to `index.html`
 2. Push to a public GitHub repository
 3. Go to **Settings → Pages → Source → main branch**
-4. URL will be `https://yourusername.github.io/repository-name/`
+4. URL: `https://yourusername.github.io/repository-name/`
 
-The calculator is fully self-contained — no backend, no build step, no npm install. All state (test log) is stored in the browser's `localStorage` and persists across sessions on the same device.
+Fully self-contained — no backend, no build step, no npm install. Test log state is stored in `localStorage` and persists across sessions on the same device.
 
 ---
 
-## Next Steps
+## Remaining Testing Priorities
 
-- Continue adding test cases, particularly for mitigations not yet verified: `satisfactory`, `confirmed_viewing`, `unsure_backup` with authorized recipients
-- Test HIGH severity path with more recipient descriptions (currently verified: covered entity, institutional client)
-- Test de-identified + hacker + not-malicious to confirm LOW prediction
-- When ready to productionise, migrate logic to Spring Boot `RuleEngine` service using the same gate structure
+The `remaining_test_cases.csv` file contains 72 cases still to verify. Run in this order:
+
+1. **Prediction changed (17 cases marked YES)** — these changed between tree versions, most due to Gate 3 three-tier split and the ransomware exception. Highest priority.
+2. **Gate 3 MODERATE cases** — `confirmed_viewing`, `ransomware_confirmed`, `unsure_backup` with authorized recipients, across multiple recipient descriptions.
+3. **Gate 1a ransomware exception** — verify hacker/media exception applies with different nature scores and protection levels.
+4. **Gate 2 mitigation refinement** — `unsure_backup` and `confirmed_viewing` with de-id + malicious + hacker/media should return LOW.
+5. **Gate 4** — has never fired. If it fires, a new RadarFirst mitigation option exists outside current buckets — investigate immediately.
+
+---
+
+## Spring Boot Integration Notes
+
+The same 5-gate structure translates directly to Java:
+
+```java
+public String assessRisk(RiskInput input) {
+    // Gate 1a — confirmed safe
+    if (CONFIRMED_SAFE.contains(input.mitigationKey) ||
+        ("satisfactory".equals(input.mitigationKey) && LEGALLY_OBLIGATED.contains(input.recipientDesc))) {
+        return isRansomwareHighRisk(input) ? "MODERATE" : "LOW";
+    }
+    // Gate 1b — assured safe
+    if (ASSURED_SAFE.contains(input.mitigationKey)) {
+        String base = input.protectionScore <= 0.10 ? "LOW" : "MODERATE";
+        return (isRansomwareHighRisk(input) && "LOW".equals(base)) ? "MODERATE" : base;
+    }
+    // Gate 2 — de-identified
+    if (input.protectionScore <= 0.10) return assessGate2(input);
+    // Gate 3 — readable + insufficient
+    if (input.dispositionScore >= 0.70) return assessGate3(input);
+    // Gate 4 — fallthrough
+    return "MODERATE";
+}
+```
+
+Bucket sets are Java `Set<String>` constants. No formulas, no weights — only set membership checks and two numeric threshold comparisons (`≤ 0.10` and `≥ 0.70`).
