@@ -1,6 +1,6 @@
 # Breach Risk Assessment Calculator
 
-**Project:** In-house replacement for RadarFirst  
+**Project:** In-house replacement for Radar  
 **Owner:** Gawde & Gawde Computer Services  
 **File:** `risk-calculator.html` — single-file, zero dependencies, deployable on GitHub Pages  
 **Tree version:** v8  
@@ -10,9 +10,9 @@
 
 ## Overview
 
-This calculator replicates the risk severity output of the RadarFirst breach assessment tool. It takes 7 inputs about a data breach incident and returns a severity level of **LOW**, **MODERATE**, **HIGH**, or **EXTREME**.
+This calculator replicates the risk severity output of the Radar breach assessment tool. It takes 7 inputs about a data breach incident and returns a severity level of **LOW**, **MODERATE**, **HIGH**, or **EXTREME**.
 
-The logic was reverse-engineered entirely from empirical testing — running known inputs through RadarFirst, recording the outputs, and iterating until every case matched. The model is a **priority-ordered decision tree**, not a weighted score. It went through 8 iterations (v1–v8) across 6 test batches to reach 43/43 accuracy.
+The logic was reverse-engineered entirely from empirical testing — running known inputs through Radar, recording the outputs, and iterating until every case matched. The model is a **priority-ordered decision tree**, not a weighted score. It went through 8 iterations (v1–v8) across 6 test batches to reach 43/43 accuracy.
 
 ---
 
@@ -28,7 +28,7 @@ The logic was reverse-engineered entirely from empirical testing — running kno
 | 6 | Disposition | Gate 3 and Gate 4 trigger — sufficient vs insufficient |
 | 7 | Mitigation Name | **Most decisive input** — determines which gate fires and at what severity |
 
-All three dependent dropdowns (Compromise, Recipient Description, Mitigation) cascade automatically based on their parent selection, mirroring exactly what RadarFirst shows.
+All three dependent dropdowns (Compromise, Recipient Description, Mitigation) cascade automatically based on their parent selection, mirroring exactly what Radar shows.
 
 ---
 
@@ -52,7 +52,7 @@ Gate 1a → Gate 1b → Gate 2 → Gate 3 → Gate 4
 **Exception — ransomware + hacker/media + readable data → MODERATE**  
 When `compromise = ransomware` AND `recipient = hacker or media` AND `protection > 0.10`, Gate 1a returns MODERATE instead of LOW. Ransomware can encrypt and exfiltrate silently — "unopened mail" does not apply because the malware does not require a human to open anything. This exception does not apply when protection is de-identified (0.10) because unreadable data neutralises the risk regardless.
 
-**Rationale for the base rule:** These mitigations provide objective, verifiable proof that data never reached a harmful state. They are the only mitigations in the entire tree that give forensic or physical certainty. RadarFirst treats them as a hard LOW overriding all other inputs — even plain text + malicious + hacker resolves LOW if data was forensically confirmed not accessed.
+**Rationale for the base rule:** These mitigations provide objective, verifiable proof that data never reached a harmful state. They are the only mitigations in the entire tree that give forensic or physical certainty. Radar treats them as a hard LOW overriding all other inputs — even plain text + malicious + hacker resolves LOW if data was forensically confirmed not accessed.
 
 **Why `satisfactory` lives here (not Gate 1b):** The full mitigation label is "Satisfactory assurance was obtained from a recipient that is obligated to protect personal data by law and/or contract." This is only legally meaningful when the recipient actually has that obligation — covered entities, business associates, federal agencies. For recipients with no legal obligation (general public, vendor, attorney), `satisfactory` drops to Gate 1b and returns MODERATE.
 
@@ -67,9 +67,9 @@ When `compromise = ransomware` AND `recipient = hacker or media` AND `protection
 - Protection = readable → **MODERATE**
 - Exception: ransomware + hacker/media + readable → **MODERATE** (same exception as Gate 1a)
 
-**Rationale:** These mitigations indicate data may have reached the recipient but containment was attempted through promises or legal obligation. Unlike Gate 1a, there is no proof of non-access — only assurance. RadarFirst consistently returns MODERATE for readable data in this group.
+**Rationale:** These mitigations indicate data may have reached the recipient but containment was attempted through promises or legal obligation. Unlike Gate 1a, there is no proof of non-access — only assurance. Radar consistently returns MODERATE for readable data in this group.
 
-**Why de-identified + assurance = LOW:** If data is de-identified, even a failed assurance causes no individual harm — the data cannot be traced back to a person. RadarFirst applies this logic regardless of how bad the other inputs look.
+**Why de-identified + assurance = LOW:** If data is de-identified, even a failed assurance causes no individual harm — the data cannot be traced back to a person. Radar applies this logic regardless of how bad the other inputs look.
 
 **Key distinction:** Gate 1a = data provably never read. Gate 1b = data may have been read but was contained.
 
@@ -130,7 +130,7 @@ When `compromise = ransomware` AND `recipient = hacker or media` AND `protection
 
 **Result: MODERATE**
 
-**Note:** In 43 verified test cases, Gate 4 has never fired in practice. Every sufficient mitigation in RadarFirst belongs to either CONFIRMED_SAFE (Gate 1a) or ASSURED_SAFE (Gate 1b). Gate 4 is a safety net for any future mitigation option that does not fit either bucket.
+**Note:** In 43 verified test cases, Gate 4 has never fired in practice. Every sufficient mitigation in Radar belongs to either CONFIRMED_SAFE (Gate 1a) or ASSURED_SAFE (Gate 1b). Gate 4 is a safety net for any future mitigation option that does not fit either bucket.
 
 ---
 
@@ -162,11 +162,11 @@ Plus: `satisfactory` when recipient is in LEGALLY_OBLIGATED
 
 ### Why a decision tree, not a weighted score
 
-The first version used a weighted score across all 7 dimensions. It failed 3/3 on the first test batch. The core problem: RadarFirst does not average inputs. Mitigation outcome dominates everything else. A case with the worst-possible protection, most malicious intent, and most dangerous recipient still returns LOW if forensic analysis confirmed no compromise. No weighted score can replicate that.
+The first version used a weighted score across all 7 dimensions. It failed 3/3 on the first test batch. The core problem: Radar does not average inputs. Mitigation outcome dominates everything else. A case with the worst-possible protection, most malicious intent, and most dangerous recipient still returns LOW if forensic analysis confirmed no compromise. No weighted score can replicate that.
 
 ### Why mitigation is the most important input
 
-Mitigation reflects what actually happened after the breach — the outcome, not the setup. RadarFirst is fundamentally answering "given what we now know, how much harm occurred?" rather than "given the circumstances, how likely is harm?" Even terrible inputs (ransomware, plain text, hacker) can resolve LOW if the outcome was confirmed safe.
+Mitigation reflects what actually happened after the breach — the outcome, not the setup. Radar is fundamentally answering "given what we now know, how much harm occurred?" rather than "given the circumstances, how likely is harm?" Even terrible inputs (ransomware, plain text, hacker) can resolve LOW if the outcome was confirmed safe.
 
 ### Why `satisfactory` is split between Gate 1a and Gate 1b
 
@@ -174,7 +174,7 @@ The word "satisfactory" in the mitigation label is modified by "from a recipient
 
 ### Why the ransomware + hacker/media exception exists
 
-Observed empirically from batch 6. Ransomware does not require a human to open a file — it encrypts and exfiltrates autonomously. The `unopened` mitigation was designed for physical mail and email contexts. For ransomware, the concept does not apply. RadarFirst returns MODERATE in this specific combination rather than LOW.
+Observed empirically from batch 6. Ransomware does not require a human to open a file — it encrypts and exfiltrates autonomously. The `unopened` mitigation was designed for physical mail and email contexts. For ransomware, the concept does not apply. Radar returns MODERATE in this specific combination rather than LOW.
 
 ### Why Gate 3 has three severity levels for authorized recipients
 
@@ -225,7 +225,7 @@ Disposition selected
     └─→ Mitigation Name shows only sufficient or insufficient mitigations
 ```
 
-Mappings come directly from `Extracted_Mapping_Tables.xlsx` and match RadarFirst exactly.
+Mappings come directly from `Extracted_Mapping_Tables.xlsx` and match Radar exactly.
 
 ---
 
@@ -233,8 +233,8 @@ Mappings come directly from `Extracted_Mapping_Tables.xlsx` and match RadarFirst
 
 For each test case:
 
-1. Select all 7 inputs to match what you entered in RadarFirst
-2. Click the LOW / MOD / HIGH / EXT button to record the RadarFirst output
+1. Select all 7 inputs to match what you entered in Radar
+2. Click the LOW / MOD / HIGH / EXT button to record the Radar output
 3. Click **+ Log Current Case** — saves with MATCH or MISMATCH and the gate that fired
 4. **Export CSV** downloads the full log for offline analysis
 
@@ -303,7 +303,7 @@ The `remaining_test_cases.csv` file contains 72 cases still to verify. Run in th
 2. **Gate 3 MODERATE cases** — `confirmed_viewing`, `ransomware_confirmed`, `unsure_backup` with authorized recipients, across multiple recipient descriptions.
 3. **Gate 1a ransomware exception** — verify hacker/media exception applies with different nature scores and protection levels.
 4. **Gate 2 mitigation refinement** — `unsure_backup` and `confirmed_viewing` with de-id + malicious + hacker/media should return LOW.
-5. **Gate 4** — has never fired. If it fires, a new RadarFirst mitigation option exists outside current buckets — investigate immediately.
+5. **Gate 4** — has never fired. If it fires, a new Radar mitigation option exists outside current buckets — investigate immediately.
 
 ---
 
