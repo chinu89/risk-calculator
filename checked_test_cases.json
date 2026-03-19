@@ -1,24 +1,112 @@
 {
   "meta": {
     "description": "All verified test cases for the Breach Risk Assessment Calculator",
-    "model_version": "v5",
-    "total_cases": 28,
+    "model_version": "v8",
+    "total_cases": 43,
     "all_match": true,
     "last_updated": "2026-03-19",
-    "gates": {
-      "gate1a_confirmed_safe": "Mitigation confirms data not accessed → LOW",
-      "gate1b_assured_safe": "Mitigation = assurance given → MODERATE",
-      "gate2_de_id": "Protection = de-identified → LOW or MODERATE",
-      "gate3_readable_insuf": "Readable data + insufficient disposition → EXTREME or HIGH",
-      "gate4_sufficient": "Readable data + sufficient disposition → MODERATE"
-    }
+    "tree_summary": {
+      "gate1a_confirmed_safe": "CONFIRMED_SAFE mitigations OR satisfactory+legally_obligated \u2192 LOW (MODERATE if ransomware+hacker/media+readable)",
+      "gate1b_assured_safe": "ASSURED_SAFE mitigations \u2192 LOW if de-id, MODERATE if readable (MODERATE if ransomware+hacker/media+readable)",
+      "gate2_de_id": "Protection=0.10 \u2192 LOW default; hacker/media+malicious sub-rules raise to MODERATE or HIGH",
+      "gate3_readable_insuf": "Readable+insufficient \u2192 EXTREME if unauthorized; authorized sub-tiers by mitigation: G3_EXTREME/G3_HIGH/G3_MODERATE",
+      "gate4_sufficient": "Readable+sufficient fallthrough \u2192 MODERATE (never fired in 43 cases)"
+    },
+    "bucket_sets": {
+      "CONFIRMED_SAFE": [
+        "unopened",
+        "forensic",
+        "backup",
+        "no_retain"
+      ],
+      "ASSURED_SAFE": [
+        "permitted",
+        "written_obtained",
+        "written_provided",
+        "satisfactory",
+        "obligated_no_assurance",
+        "ce_ba_obligated",
+        "no_written_obtained",
+        "no_written_provided",
+        "company_policy"
+      ],
+      "LEGALLY_OBLIGATED": [
+        "covered_entity",
+        "business_associate",
+        "ba_state_gov",
+        "federal_agency",
+        "ohca",
+        "self_insured_sponsor",
+        "fully_insured_sponsor",
+        "reg_investment_advisor",
+        "state_gov",
+        "employee"
+      ],
+      "GATE2_BAD_MIT": [
+        "unable_retrieve",
+        "improper_use",
+        "sent_to_media",
+        "unknown_mit",
+        "ssn_exposed",
+        "ransomware_confirmed"
+      ],
+      "G3_EXTREME": [
+        "improper_use",
+        "unknown_mit",
+        "sent_to_media",
+        "ssn_exposed"
+      ],
+      "G3_HIGH": [
+        "unable_retrieve"
+      ],
+      "G3_MODERATE": [
+        "confirmed_viewing",
+        "ransomware_confirmed",
+        "unsure_backup"
+      ]
+    },
+    "distribution": {
+      "by_gate": {
+        "gate1a_confirmed_safe": 11,
+        "gate1b_assured_safe": 5,
+        "gate2_de_id": 14,
+        "gate3_readable_insuf": 13
+      },
+      "by_result": {
+        "EXTREME": 8,
+        "HIGH": 3,
+        "LOW": 21,
+        "MODERATE": 11
+      },
+      "by_batch": {
+        "batch_1": 7,
+        "batch_2": 9,
+        "batch_3": 9,
+        "batch_4": 6,
+        "batch_5": 5,
+        "batch_6": 4,
+        "original": 3
+      }
+    },
+    "batch_history": {
+      "original": "O1-O3 \u2014 exposed weighted score as wrong; tree approach needed",
+      "batch_1": "P1-P7 \u2014 Gate 2 de-id structure confirmed",
+      "batch_2": "N1-N9 \u2014 authorized vs unauthorized split in Gate 3 discovered",
+      "batch_3": "Q1-Q9 \u2014 Gate 1a/1b split discovered (confirmed vs assured)",
+      "batch_4": "R1-R6 \u2014 satisfactory legal-obligation rule; de-id+assurance=LOW; Gate 2 mitigation sub-rules",
+      "batch_5": "S1-S5 \u2014 Gate 3 three-tier split (EXTREME/HIGH/MODERATE); N1 corrected from HIGH to EXTREME",
+      "batch_6": "T1-T4 \u2014 ransomware+hacker/media exception on Gates 1a and 1b"
+    },
+    "key_corrections": [
+      "N1: RadarFirst result corrected from HIGH to EXTREME during batch 5 reanalysis. Inputs are identical to S2 \u2014 both are redacted+malicious+CE+insufficient+improper_use. Original HIGH reading was an error."
+    ]
   },
   "test_cases": [
     {
       "id": "O1",
       "batch": "original",
       "protection": "Redacted",
-      "protection_score": 0.20,
+      "protection_score": 0.2,
       "incident_nature": "Intentional, malicious",
       "nature_score": 0.85,
       "compromise_description": "Disclosure",
@@ -31,13 +119,14 @@
       "gate_fired": "gate1a_confirmed_safe",
       "our_result": "LOW",
       "radarfirst_result": "LOW",
-      "match": true
+      "match": true,
+      "notes": "Original batch \u2014 first test against RadarFirst, exposed weighted score as wrong approach"
     },
     {
       "id": "O2",
       "batch": "original",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Intentional, malicious",
       "nature_score": 0.85,
       "compromise_description": "Ransomware",
@@ -51,15 +140,15 @@
       "our_result": "MODERATE",
       "radarfirst_result": "MODERATE",
       "match": true,
-      "notes": "De-id + ransomware_confirmed is the one case where Gate 2 returns MODERATE not LOW"
+      "notes": "De-id + ransomware_confirmed \u2192 MODERATE. Only de-id case that returns MODERATE via Gate 2."
     },
     {
       "id": "O3",
       "batch": "original",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Unintentional or inadvertent",
-      "nature_score": 0.30,
+      "nature_score": 0.3,
       "compromise_description": "Disclosure",
       "recipient_type": "authorized",
       "recipient_description": "Fully-insured plan sponsor",
@@ -70,15 +159,16 @@
       "gate_fired": "gate2_de_id",
       "our_result": "LOW",
       "radarfirst_result": "LOW",
-      "match": true
+      "match": true,
+      "notes": "De-id + insufficient + unsure_backup \u2192 LOW. Gate 2 default."
     },
     {
       "id": "P1",
       "batch": "batch_1",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Unintentional or inadvertent",
-      "nature_score": 0.30,
+      "nature_score": 0.3,
       "compromise_description": "Disclosure",
       "recipient_type": "authorized",
       "recipient_description": "Fully-insured plan sponsor",
@@ -89,7 +179,8 @@
       "gate_fired": "gate2_de_id",
       "our_result": "LOW",
       "radarfirst_result": "LOW",
-      "match": true
+      "match": true,
+      "notes": "Duplicate of O3 \u2014 confirmed consistency."
     },
     {
       "id": "P2",
@@ -97,7 +188,7 @@
       "protection": "In plain text",
       "protection_score": 0.85,
       "incident_nature": "Unintentional or inadvertent",
-      "nature_score": 0.30,
+      "nature_score": 0.3,
       "compromise_description": "Disclosure",
       "recipient_type": "authorized",
       "recipient_description": "Fully-insured plan sponsor",
@@ -109,7 +200,7 @@
       "our_result": "LOW",
       "radarfirst_result": "LOW",
       "match": true,
-      "notes": "Plain text but unopened — Gate 1a fires regardless of protection level"
+      "notes": "Plain text + sufficient + unopened \u2192 LOW. Gate 1a overrides all bad inputs."
     },
     {
       "id": "P3",
@@ -129,7 +220,7 @@
       "our_result": "LOW",
       "radarfirst_result": "LOW",
       "match": true,
-      "notes": "Plain text + malicious but unopened — Gate 1a still overrides everything"
+      "notes": "Plain text + malicious + sufficient + unopened \u2192 LOW. Gate 1a beats intent."
     },
     {
       "id": "P4",
@@ -149,13 +240,13 @@
       "our_result": "EXTREME",
       "radarfirst_result": "EXTREME",
       "match": true,
-      "notes": "Authorized + insufficient + unknown_mit triggers EXTREME via EXTREME_MIT bucket"
+      "notes": "Plain text + authorized + insufficient + unknown_mit \u2192 EXTREME. G3_EXTREME bucket."
     },
     {
       "id": "P5",
       "batch": "batch_1",
       "protection": "Redacted",
-      "protection_score": 0.20,
+      "protection_score": 0.2,
       "incident_nature": "Intentional, malicious",
       "nature_score": 0.85,
       "compromise_description": "Disclosure",
@@ -169,13 +260,13 @@
       "our_result": "EXTREME",
       "radarfirst_result": "EXTREME",
       "match": true,
-      "notes": "Redacted (readable) + authorized + insufficient + unknown_mit → EXTREME"
+      "notes": "Redacted + authorized + insufficient + unknown_mit \u2192 EXTREME. G3_EXTREME bucket."
     },
     {
       "id": "P6",
       "batch": "batch_1",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Intentional, malicious",
       "nature_score": 0.85,
       "compromise_description": "Disclosure",
@@ -189,13 +280,13 @@
       "our_result": "LOW",
       "radarfirst_result": "LOW",
       "match": true,
-      "notes": "Same as P4/P5 but de-identified — Gate 2 fires first, returns LOW"
+      "notes": "De-id + authorized + insufficient + unknown_mit \u2192 LOW. Gate 2 fires before Gate 3."
     },
     {
       "id": "P7",
       "batch": "batch_1",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Intentional, not malicious",
       "nature_score": 0.45,
       "compromise_description": "IT incident",
@@ -209,13 +300,13 @@
       "our_result": "LOW",
       "radarfirst_result": "LOW",
       "match": true,
-      "notes": "De-id + improper_use — even confirmed improper use is LOW when data is de-identified"
+      "notes": "De-id + authorized + insufficient + improper_use \u2192 LOW. Gate 2, no high-risk recipient."
     },
     {
       "id": "N1",
       "batch": "batch_2",
       "protection": "Redacted",
-      "protection_score": 0.20,
+      "protection_score": 0.2,
       "incident_nature": "Intentional, malicious",
       "nature_score": 0.85,
       "compromise_description": "Unauthorized access",
@@ -226,16 +317,16 @@
       "mitigation_key": "improper_use",
       "mitigation_label": "Confirmed improper use or further exposure",
       "gate_fired": "gate3_readable_insuf",
-      "our_result": "HIGH",
-      "radarfirst_result": "HIGH",
+      "our_result": "EXTREME",
+      "radarfirst_result": "EXTREME",
       "match": true,
-      "notes": "Readable + authorized + insufficient + improper_use → HIGH (not EXTREME because improper_use is not in EXTREME_MIT)"
+      "notes": "Redacted + authorized + insufficient + improper_use \u2192 EXTREME. NOTE: originally recorded as HIGH \u2014 corrected to EXTREME in batch 5 reanalysis."
     },
     {
       "id": "N2",
       "batch": "batch_2",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Intentional, malicious",
       "nature_score": 0.85,
       "compromise_description": "Unauthorized access",
@@ -248,13 +339,14 @@
       "gate_fired": "gate2_de_id",
       "our_result": "LOW",
       "radarfirst_result": "LOW",
-      "match": true
+      "match": true,
+      "notes": "De-id + authorized + insufficient + improper_use \u2192 LOW. Gate 2 neutralises improper_use."
     },
     {
       "id": "N3",
       "batch": "batch_2",
       "protection": "Redacted",
-      "protection_score": 0.20,
+      "protection_score": 0.2,
       "incident_nature": "Intentional, not malicious",
       "nature_score": 0.45,
       "compromise_description": "IT incident",
@@ -268,15 +360,15 @@
       "our_result": "EXTREME",
       "radarfirst_result": "EXTREME",
       "match": true,
-      "notes": "Vendor is UNAUTHORIZED — any readable + insufficient + unauthorized = EXTREME"
+      "notes": "Redacted + unauthorized (vendor) + insufficient + unable_retrieve \u2192 EXTREME. Any unauthorized + readable + insufficient = EXTREME."
     },
     {
       "id": "N4",
       "batch": "batch_2",
       "protection": "Redacted",
-      "protection_score": 0.20,
+      "protection_score": 0.2,
       "incident_nature": "Unintentional or inadvertent",
-      "nature_score": 0.30,
+      "nature_score": 0.3,
       "compromise_description": "Good faith acquisition, access, or use",
       "recipient_type": "unauthorized",
       "recipient_description": "Vendor",
@@ -287,15 +379,16 @@
       "gate_fired": "gate1a_confirmed_safe",
       "our_result": "LOW",
       "radarfirst_result": "LOW",
-      "match": true
+      "match": true,
+      "notes": "Redacted + unauthorized (vendor) + sufficient + unopened \u2192 LOW. Gate 1a fires first."
     },
     {
       "id": "N5",
       "batch": "batch_2",
       "protection": "Redacted",
-      "protection_score": 0.20,
+      "protection_score": 0.2,
       "incident_nature": "Unintentional or inadvertent",
-      "nature_score": 0.30,
+      "nature_score": 0.3,
       "compromise_description": "Good faith acquisition, access, or use",
       "recipient_type": "authorized",
       "recipient_description": "Covered entity",
@@ -306,7 +399,8 @@
       "gate_fired": "gate1a_confirmed_safe",
       "our_result": "LOW",
       "radarfirst_result": "LOW",
-      "match": true
+      "match": true,
+      "notes": "Redacted + authorized + sufficient + unopened \u2192 LOW. Gate 1a."
     },
     {
       "id": "N6",
@@ -326,13 +420,13 @@
       "our_result": "EXTREME",
       "radarfirst_result": "EXTREME",
       "match": true,
-      "notes": "Media is unauthorized — readable + insufficient + unauthorized = EXTREME"
+      "notes": "Physical safeguard + unauthorized (media) + insufficient + unable_retrieve \u2192 EXTREME. Unauthorized."
     },
     {
       "id": "N7",
       "batch": "batch_2",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Intentional, malicious",
       "nature_score": 0.85,
       "compromise_description": "Theft",
@@ -346,13 +440,13 @@
       "our_result": "MODERATE",
       "radarfirst_result": "MODERATE",
       "match": true,
-      "notes": "De-id + Media + malicious → MODERATE (Gate 2 sub-rule: high-risk recipient + malicious nature)"
+      "notes": "De-id + unauthorized (media) + insufficient + unable_retrieve \u2192 MODERATE. Gate 2: media+malicious+bad_mit."
     },
     {
       "id": "N8",
       "batch": "batch_2",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Intentional, not malicious",
       "nature_score": 0.45,
       "compromise_description": "Unauthorized use",
@@ -366,15 +460,15 @@
       "our_result": "LOW",
       "radarfirst_result": "LOW",
       "match": true,
-      "notes": "De-id + Media + NOT malicious → LOW (nature < 0.80 so Gate 2 sub-rule returns LOW)"
+      "notes": "De-id + unauthorized (media) + insufficient + unable_retrieve \u2192 LOW. Gate 2: media+NOT malicious."
     },
     {
       "id": "N9",
       "batch": "batch_2",
       "protection": "Redacted",
-      "protection_score": 0.20,
+      "protection_score": 0.2,
       "incident_nature": "Unintentional or inadvertent",
-      "nature_score": 0.30,
+      "nature_score": 0.3,
       "compromise_description": "Unauthorized use",
       "recipient_type": "authorized",
       "recipient_description": "Institutional client",
@@ -386,15 +480,15 @@
       "our_result": "HIGH",
       "radarfirst_result": "HIGH",
       "match": true,
-      "notes": "Authorized + insufficient + unable_retrieve → HIGH (not EXTREME)"
+      "notes": "Redacted + authorized + insufficient + unable_retrieve \u2192 HIGH. G3_HIGH bucket."
     },
     {
       "id": "Q1",
       "batch": "batch_3",
       "protection": "Redacted",
-      "protection_score": 0.20,
+      "protection_score": 0.2,
       "incident_nature": "Unintentional or inadvertent",
-      "nature_score": 0.30,
+      "nature_score": 0.3,
       "compromise_description": "Unauthorized use",
       "recipient_type": "authorized",
       "recipient_description": "Institutional client",
@@ -405,15 +499,16 @@
       "gate_fired": "gate3_readable_insuf",
       "our_result": "HIGH",
       "radarfirst_result": "HIGH",
-      "match": true
+      "match": true,
+      "notes": "Duplicate of N9 with different nature \u2014 confirmed HIGH is consistent for authorized+insufficient+unable_retrieve."
     },
     {
       "id": "Q2",
       "batch": "batch_3",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Unintentional or inadvertent",
-      "nature_score": 0.30,
+      "nature_score": 0.3,
       "compromise_description": "Unauthorized use",
       "recipient_type": "authorized",
       "recipient_description": "Institutional client",
@@ -424,13 +519,14 @@
       "gate_fired": "gate2_de_id",
       "our_result": "LOW",
       "radarfirst_result": "LOW",
-      "match": true
+      "match": true,
+      "notes": "De-id + authorized + insufficient + unable_retrieve \u2192 LOW. Gate 2."
     },
     {
       "id": "Q3",
       "batch": "batch_3",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Intentional, malicious",
       "nature_score": 0.85,
       "compromise_description": "Theft",
@@ -443,13 +539,14 @@
       "gate_fired": "gate2_de_id",
       "our_result": "LOW",
       "radarfirst_result": "LOW",
-      "match": true
+      "match": true,
+      "notes": "De-id + authorized + insufficient + unable_retrieve \u2192 LOW. Gate 2 even with malicious nature."
     },
     {
       "id": "Q4",
       "batch": "batch_3",
       "protection": "Statistically de-identified",
-      "protection_score": 0.10,
+      "protection_score": 0.1,
       "incident_nature": "Intentional, malicious",
       "nature_score": 0.85,
       "compromise_description": "Theft",
@@ -462,7 +559,8 @@
       "gate_fired": "gate2_de_id",
       "our_result": "LOW",
       "radarfirst_result": "LOW",
-      "match": true
+      "match": true,
+      "notes": "De-id + authorized + insufficient + unknown_mit \u2192 LOW. Gate 2 overrides EXTREME_MIT."
     },
     {
       "id": "Q5",
@@ -482,7 +580,7 @@
       "our_result": "LOW",
       "radarfirst_result": "LOW",
       "match": true,
-      "notes": "Plain text + malicious + forensic confirmed → LOW. Gate 1a overrides everything."
+      "notes": "Plain text + authorized + sufficient + forensic \u2192 LOW. Gate 1a confirmed safe."
     },
     {
       "id": "Q6",
@@ -502,7 +600,7 @@
       "our_result": "MODERATE",
       "radarfirst_result": "MODERATE",
       "match": true,
-      "notes": "KEY CASE — same as Q5 but obligated_no_assurance instead of forensic. Gate 1b fires → MODERATE not LOW. Confirmed the Gate 1a/1b split."
+      "notes": "Plain text + authorized + sufficient + obligated_no_assurance \u2192 MODERATE. Gate 1b assured safe."
     },
     {
       "id": "Q7",
@@ -522,7 +620,7 @@
       "our_result": "MODERATE",
       "radarfirst_result": "MODERATE",
       "match": true,
-      "notes": "KEY CASE — permitted use confirmed but data was seen. Gate 1b → MODERATE."
+      "notes": "Physical safeguard + authorized + sufficient + permitted \u2192 MODERATE. Gate 1b. Confirmed permitted use still MODERATE (data was seen)."
     },
     {
       "id": "Q8",
@@ -542,7 +640,7 @@
       "our_result": "LOW",
       "radarfirst_result": "LOW",
       "match": true,
-      "notes": "Same as Q7 but forensic instead of permitted → LOW. Confirms forensic = Gate 1a."
+      "notes": "Physical safeguard + authorized + sufficient + forensic \u2192 LOW. Gate 1a."
     },
     {
       "id": "Q9",
@@ -562,7 +660,307 @@
       "our_result": "MODERATE",
       "radarfirst_result": "MODERATE",
       "match": true,
-      "notes": "KEY CASE — written assurance obtained but data reached recipient. Gate 1b → MODERATE."
+      "notes": "Physical safeguard + authorized + sufficient + written_obtained \u2192 MODERATE. Gate 1b."
+    },
+    {
+      "id": "R1",
+      "batch": "batch_4",
+      "protection": "In plain text",
+      "protection_score": 0.85,
+      "incident_nature": "Intentional, not malicious",
+      "nature_score": 0.45,
+      "compromise_description": "Unauthorized use",
+      "recipient_type": "authorized",
+      "recipient_description": "Business associate",
+      "disposition": "Sufficient risk mitigation",
+      "disposition_score": 0.15,
+      "mitigation_key": "satisfactory",
+      "mitigation_label": "Satisfactory assurance was obtained from a recipient that is obligated to protect personal data by law and/or contract",
+      "gate_fired": "gate1a_confirmed_safe",
+      "our_result": "LOW",
+      "radarfirst_result": "LOW",
+      "match": true,
+      "notes": "Plain text + authorized (BA) + sufficient + satisfactory \u2192 LOW. Gate 1a: BA is legally obligated so satisfactory = confirmed safe."
+    },
+    {
+      "id": "R2",
+      "batch": "batch_4",
+      "protection": "In plain text",
+      "protection_score": 0.85,
+      "incident_nature": "Unintentional or inadvertent",
+      "nature_score": 0.3,
+      "compromise_description": "Loss",
+      "recipient_type": "unauthorized",
+      "recipient_description": "Member of general public",
+      "disposition": "Sufficient risk mitigation",
+      "disposition_score": 0.15,
+      "mitigation_key": "satisfactory",
+      "mitigation_label": "Satisfactory assurance was obtained from a recipient that is obligated to protect personal data by law and/or contract",
+      "gate_fired": "gate1b_assured_safe",
+      "our_result": "MODERATE",
+      "radarfirst_result": "MODERATE",
+      "match": true,
+      "notes": "Plain text + unauthorized (general public) + sufficient + satisfactory \u2192 MODERATE. Gate 1b: general public not legally obligated."
+    },
+    {
+      "id": "R3",
+      "batch": "batch_4",
+      "protection": "Statistically de-identified",
+      "protection_score": 0.1,
+      "incident_nature": "Intentional, malicious",
+      "nature_score": 0.85,
+      "compromise_description": "Hacking or malware other than ransomware",
+      "recipient_type": "unauthorized",
+      "recipient_description": "Hacker or thief",
+      "disposition": "Insufficient or unknown risk mitigation",
+      "disposition_score": 0.75,
+      "mitigation_key": "unable_retrieve",
+      "mitigation_label": "Unable to retrieve or unsure of disposition",
+      "gate_fired": "gate2_de_id",
+      "our_result": "MODERATE",
+      "radarfirst_result": "MODERATE",
+      "match": true,
+      "notes": "De-id + unauthorized (hacker) + insufficient + unable_retrieve \u2192 MODERATE. Gate 2: hacker+malicious+bad_mit."
+    },
+    {
+      "id": "R4",
+      "batch": "batch_4",
+      "protection": "Statistically de-identified",
+      "protection_score": 0.1,
+      "incident_nature": "Intentional, malicious",
+      "nature_score": 0.85,
+      "compromise_description": "Theft",
+      "recipient_type": "unauthorized",
+      "recipient_description": "Media",
+      "disposition": "Insufficient or unknown risk mitigation",
+      "disposition_score": 0.75,
+      "mitigation_key": "unsure_backup",
+      "mitigation_label": "Destroyed properly but unsure of backup or copy status",
+      "gate_fired": "gate2_de_id",
+      "our_result": "LOW",
+      "radarfirst_result": "LOW",
+      "match": true,
+      "notes": "De-id + unauthorized (media) + insufficient + unsure_backup \u2192 LOW. Gate 2: media+malicious but unsure_backup is NOT in GATE2_BAD_MIT."
+    },
+    {
+      "id": "R5",
+      "batch": "batch_4",
+      "protection": "Statistically de-identified",
+      "protection_score": 0.1,
+      "incident_nature": "Intentional, malicious",
+      "nature_score": 0.85,
+      "compromise_description": "Ransomware",
+      "recipient_type": "unauthorized",
+      "recipient_description": "Media",
+      "disposition": "Insufficient or unknown risk mitigation",
+      "disposition_score": 0.75,
+      "mitigation_key": "ransomware_confirmed",
+      "mitigation_label": "Confirmed ransomware acquisition with high risk to data integrity or availability",
+      "gate_fired": "gate2_de_id",
+      "our_result": "HIGH",
+      "radarfirst_result": "HIGH",
+      "match": true,
+      "notes": "De-id + unauthorized (media) + insufficient + ransomware_confirmed \u2192 HIGH. Gate 2: media+malicious+ransomware_confirmed special sub-rule."
+    },
+    {
+      "id": "R6",
+      "batch": "batch_4",
+      "protection": "Statistically de-identified",
+      "protection_score": 0.1,
+      "incident_nature": "Intentional, malicious",
+      "nature_score": 0.85,
+      "compromise_description": "Ransomware",
+      "recipient_type": "unauthorized",
+      "recipient_description": "Hacker or thief",
+      "disposition": "Sufficient risk mitigation",
+      "disposition_score": 0.15,
+      "mitigation_key": "written_obtained",
+      "mitigation_label": "Written assurance was obtained (confidentiality agreement, attestation), and data will not be further used or disclosed",
+      "gate_fired": "gate1b_assured_safe",
+      "our_result": "LOW",
+      "radarfirst_result": "LOW",
+      "match": true,
+      "notes": "De-id + unauthorized (hacker) + sufficient + written_obtained \u2192 LOW. Gate 1b: de-id + assurance = LOW regardless of hacker recipient."
+    },
+    {
+      "id": "S1",
+      "batch": "batch_5",
+      "protection": "Under physical safeguard",
+      "protection_score": 0.25,
+      "incident_nature": "Intentional, not malicious",
+      "nature_score": 0.45,
+      "compromise_description": "IT incident",
+      "recipient_type": "authorized",
+      "recipient_description": "Self-insured plan sponsor",
+      "disposition": "Insufficient or unknown risk mitigation",
+      "disposition_score": 0.75,
+      "mitigation_key": "confirmed_viewing",
+      "mitigation_label": "Confirmed viewing or acquisition without evidence of any improper use by recipient",
+      "gate_fired": "gate3_readable_insuf",
+      "our_result": "MODERATE",
+      "radarfirst_result": "MODERATE",
+      "match": true,
+      "notes": "Physical safeguard + authorized (self-insured sponsor) + insufficient + confirmed_viewing \u2192 MODERATE. G3_MODERATE bucket."
+    },
+    {
+      "id": "S2",
+      "batch": "batch_5",
+      "protection": "Redacted",
+      "protection_score": 0.2,
+      "incident_nature": "Intentional, malicious",
+      "nature_score": 0.85,
+      "compromise_description": "Unauthorized access",
+      "recipient_type": "authorized",
+      "recipient_description": "Covered entity",
+      "disposition": "Insufficient or unknown risk mitigation",
+      "disposition_score": 0.75,
+      "mitigation_key": "improper_use",
+      "mitigation_label": "Confirmed improper use or further exposure",
+      "gate_fired": "gate3_readable_insuf",
+      "our_result": "EXTREME",
+      "radarfirst_result": "EXTREME",
+      "match": true,
+      "notes": "Redacted + authorized (CE) + insufficient + improper_use \u2192 EXTREME. G3_EXTREME. Confirms N1 correction."
+    },
+    {
+      "id": "S3",
+      "batch": "batch_5",
+      "protection": "Redacted",
+      "protection_score": 0.2,
+      "incident_nature": "Intentional, malicious",
+      "nature_score": 0.85,
+      "compromise_description": "Unauthorized access",
+      "recipient_type": "authorized",
+      "recipient_description": "Business associate",
+      "disposition": "Insufficient or unknown risk mitigation",
+      "disposition_score": 0.75,
+      "mitigation_key": "improper_use",
+      "mitigation_label": "Confirmed improper use or further exposure",
+      "gate_fired": "gate3_readable_insuf",
+      "our_result": "EXTREME",
+      "radarfirst_result": "EXTREME",
+      "match": true,
+      "notes": "Redacted + authorized (BA) + insufficient + improper_use \u2192 EXTREME. G3_EXTREME. BA same as CE for Gate 3."
+    },
+    {
+      "id": "S4",
+      "batch": "batch_5",
+      "protection": "Redacted",
+      "protection_score": 0.2,
+      "incident_nature": "Intentional, malicious",
+      "nature_score": 0.85,
+      "compromise_description": "Unauthorized access",
+      "recipient_type": "authorized",
+      "recipient_description": "Covered entity",
+      "disposition": "Insufficient or unknown risk mitigation",
+      "disposition_score": 0.75,
+      "mitigation_key": "confirmed_viewing",
+      "mitigation_label": "Confirmed viewing or acquisition without evidence of any improper use by recipient",
+      "gate_fired": "gate3_readable_insuf",
+      "our_result": "MODERATE",
+      "radarfirst_result": "MODERATE",
+      "match": true,
+      "notes": "Redacted + authorized (CE) + insufficient + confirmed_viewing \u2192 MODERATE. G3_MODERATE bucket."
+    },
+    {
+      "id": "S5",
+      "batch": "batch_5",
+      "protection": "Redacted",
+      "protection_score": 0.2,
+      "incident_nature": "Unintentional or inadvertent",
+      "nature_score": 0.3,
+      "compromise_description": "Good faith acquisition, access, or use",
+      "recipient_type": "authorized",
+      "recipient_description": "Organized health care arrangement (OHCA)",
+      "disposition": "Insufficient or unknown risk mitigation",
+      "disposition_score": 0.75,
+      "mitigation_key": "ransomware_confirmed",
+      "mitigation_label": "Confirmed ransomware acquisition with high risk to data integrity or availability",
+      "gate_fired": "gate3_readable_insuf",
+      "our_result": "MODERATE",
+      "radarfirst_result": "MODERATE",
+      "match": true,
+      "notes": "Redacted + authorized (OHCA) + insufficient + ransomware_confirmed \u2192 MODERATE. G3_MODERATE: ransomware_confirmed with authorized = MODERATE not EXTREME."
+    },
+    {
+      "id": "T1",
+      "batch": "batch_6",
+      "protection": "Redacted",
+      "protection_score": 0.2,
+      "incident_nature": "Unintentional or inadvertent",
+      "nature_score": 0.3,
+      "compromise_description": "Unauthorized access",
+      "recipient_type": "unauthorized",
+      "recipient_description": "Partner or significant other not in the household",
+      "disposition": "Insufficient or unknown risk mitigation",
+      "disposition_score": 0.75,
+      "mitigation_key": "improper_use",
+      "mitigation_label": "Confirmed improper use or further exposure",
+      "gate_fired": "gate3_readable_insuf",
+      "our_result": "EXTREME",
+      "radarfirst_result": "EXTREME",
+      "match": true,
+      "notes": "Redacted + unauthorized (partner) + insufficient + improper_use \u2192 EXTREME. Unauthorized always EXTREME."
+    },
+    {
+      "id": "T2",
+      "batch": "batch_6",
+      "protection": "In plain text",
+      "protection_score": 0.85,
+      "incident_nature": "Intentional, malicious",
+      "nature_score": 0.85,
+      "compromise_description": "Ransomware",
+      "recipient_type": "unauthorized",
+      "recipient_description": "Hacker or thief",
+      "disposition": "Sufficient risk mitigation",
+      "disposition_score": 0.15,
+      "mitigation_key": "unopened",
+      "mitigation_label": "Recipient had the opportunity, but did not view, access, transfer, or use the data (unopened returned mail)",
+      "gate_fired": "gate1a_confirmed_safe",
+      "our_result": "MODERATE",
+      "radarfirst_result": "MODERATE",
+      "match": true,
+      "notes": "Plain text + unauthorized (hacker) + sufficient + unopened \u2192 MODERATE. KEY: ransomware+hacker+readable exception on Gate 1a. Even unopened = MODERATE when ransomware+hacker."
+    },
+    {
+      "id": "T3",
+      "batch": "batch_6",
+      "protection": "In plain text",
+      "protection_score": 0.85,
+      "incident_nature": "Intentional, malicious",
+      "nature_score": 0.85,
+      "compromise_description": "Unauthorized access",
+      "recipient_type": "authorized",
+      "recipient_description": "Covered entity",
+      "disposition": "Sufficient risk mitigation",
+      "disposition_score": 0.15,
+      "mitigation_key": "unopened",
+      "mitigation_label": "Recipient had the opportunity, but did not view, access, transfer, or use the data (unopened returned mail)",
+      "gate_fired": "gate1a_confirmed_safe",
+      "our_result": "LOW",
+      "radarfirst_result": "LOW",
+      "match": true,
+      "notes": "Plain text + authorized (CE) + sufficient + unopened \u2192 LOW. No ransomware \u2014 Gate 1a returns LOW normally."
+    },
+    {
+      "id": "T4",
+      "batch": "batch_6",
+      "protection": "In plain text",
+      "protection_score": 0.85,
+      "incident_nature": "Unintentional or inadvertent",
+      "nature_score": 0.3,
+      "compromise_description": "Improper disposal",
+      "recipient_type": "authorized",
+      "recipient_description": "Business associate",
+      "disposition": "Sufficient risk mitigation",
+      "disposition_score": 0.15,
+      "mitigation_key": "backup",
+      "mitigation_label": "Recovered or restored from backup without high risk to data integrity or availability",
+      "gate_fired": "gate1a_confirmed_safe",
+      "our_result": "LOW",
+      "radarfirst_result": "LOW",
+      "match": true,
+      "notes": "Plain text + authorized (BA) + sufficient + backup \u2192 LOW. Gate 1a confirmed safe."
     }
   ]
 }
