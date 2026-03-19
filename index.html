@@ -554,7 +554,6 @@ footer {
 </div><!-- wrap -->
 
 <script>
-// ── Cascade data ──────────────────────────────────────────────────────────────
 const COMPROMISE_BY_NATURE = {
   '0.85': [
     {val:'ransomware',    label:'Ransomware'},
@@ -653,32 +652,27 @@ const MITIGATION_BY_DISPOSITION = {
   ],
 };
 
-// ── Cascade handlers ──────────────────────────────────────────────────────────
 function populateSelect(id, items, placeholder) {
   const el = document.getElementById(id);
   el.innerHTML = `<option value="">— ${placeholder} —</option>`;
   items.forEach(item => {
     const opt = document.createElement('option');
-    opt.value = item.val;
-    opt.textContent = item.label;
+    opt.value = item.val; opt.textContent = item.label;
     el.appendChild(opt);
   });
 }
-
 function onNatureChange() {
   const nat = document.getElementById('d_nature').value;
   const items = COMPROMISE_BY_NATURE[nat] || [];
   populateSelect('d_compromise', items, items.length ? 'select compromise' : 'select nature first');
   calc();
 }
-
 function onRecipientChange() {
   const recip = document.getElementById('d_recipient').value;
   const items = REC_DESC_BY_RECIPIENT[recip] || [];
   populateSelect('d_rec_desc', items, items.length ? 'select description' : 'select recipient first');
   calc();
 }
-
 function onDispositionChange() {
   const disp = document.getElementById('d_disposition').value;
   const items = MITIGATION_BY_DISPOSITION[disp] || [];
@@ -686,65 +680,81 @@ function onDispositionChange() {
   calc();
 }
 
-// ── Decision Tree v5 (28/28 cases verified) ───────────────────────────────────
-//
-// Gate 1a: mitigation = CONFIRMED_SAFE  → LOW   (data provably not accessed)
-// Gate 1b: mitigation = ASSURED_SAFE    → MODERATE (assurance given, data may have been seen)
-// Gate 2:  protection = de-identified   → LOW or MODERATE (see sub-rules)
-// Gate 3:  readable + insufficient      → EXTREME or HIGH (by recipient type)
-// Gate 4:  readable + sufficient        → MODERATE
-
+// ── Decision Tree v6 (34/34 verified) ────────────────────────────────────────
+const LEGALLY_OBLIGATED = new Set([
+  'covered_entity','business_associate','ba_state_gov','federal_agency',
+  'ohca','self_insured_sponsor','fully_insured_sponsor','reg_investment_advisor',
+  'state_gov','employee',
+]);
 const CONFIRMED_SAFE = new Set(['unopened','forensic','backup','no_retain']);
-
-const ASSURED_SAFE = new Set([
+const ASSURED_SAFE   = new Set([
   'permitted','written_obtained','written_provided','satisfactory',
   'obligated_no_assurance','ce_ba_obligated','no_written_obtained',
   'no_written_provided','company_policy',
 ]);
-
-const EXTREME_MIT = new Set(['unknown_mit','sent_to_media','ssn_exposed']);
+const GATE2_BAD_MIT  = new Set([
+  'unable_retrieve','improper_use','sent_to_media','unknown_mit','ssn_exposed','ransomware_confirmed',
+]);
+// Gate 3 authorized+insufficient — three severity tiers by mitigation
+const G3_EXTREME  = new Set(['improper_use','unknown_mit','sent_to_media','ssn_exposed']);
+const G3_HIGH     = new Set(['unable_retrieve']);
+const G3_MODERATE = new Set(['confirmed_viewing','ransomware_confirmed','unsure_backup']);
 
 const TREE_STEPS = [
   {
-    id:   'gate1a_confirmed_safe',
+    id:'gate1a_confirmed_safe',
     label:'Gate 1a — Mitigation confirms data not accessed',
-    desc: 'Unopened, forensic clearance, backup recovery, or recipient could not retain',
-    eval: s => CONFIRMED_SAFE.has(s.mit_key) ? 'LOW' : null,
+    desc:'Unopened, forensic, backup, no_retain — or satisfactory assurance from a legally obligated recipient',
+    eval: s => {
+      if (CONFIRMED_SAFE.has(s.mit_key)) return 'LOW';
+      if (s.mit_key === 'satisfactory' && LEGALLY_OBLIGATED.has(s.rec_desc_key)) return 'LOW';
+      return null;
+    },
   },
   {
-    id:   'gate1b_assured_safe',
-    label:'Gate 1b — Mitigation = assurance given (data may have been seen)',
-    desc: 'Written assurance, permitted use, obligated recipient, or company policy followed',
-    eval: s => ASSURED_SAFE.has(s.mit_key) ? 'MODERATE' : null,
+    id:'gate1b_assured_safe',
+    label:'Gate 1b — Mitigation = assurance given',
+    desc:'Written assurance / permitted use / policy — de-identified data → LOW; readable data → MODERATE',
+    eval: s => {
+      if (!ASSURED_SAFE.has(s.mit_key)) return null;
+      return (s.protection !== null && s.protection <= 0.10) ? 'LOW' : 'MODERATE';
+    },
   },
   {
-    id:   'gate2_de_id',
+    id:'gate2_de_id',
     label:'Gate 2 — Protection = de-identified',
-    desc: 'De-identified data has very low harm potential regardless of other factors',
+    desc:'De-identified data — severity depends on recipient, intent, and mitigation outcome',
     eval: s => {
       if (s.protection === null || s.protection > 0.10) return null;
-      if (s.rec_desc_key === 'media' || s.rec_desc_key === 'hacker')
-        return s.nature >= 0.80 ? 'MODERATE' : 'LOW';
-      if (s.mit_key === 'ransomware_confirmed') return 'MODERATE';
+      const highRisk = s.rec_desc_key === 'media' || s.rec_desc_key === 'hacker';
+      if (highRisk && s.nature >= 0.80) {
+        if (s.mit_key === 'ransomware_confirmed') return 'HIGH';
+        if (GATE2_BAD_MIT.has(s.mit_key)) return 'MODERATE';
+        return 'LOW';
+      }
+      if (!highRisk && s.mit_key === 'ransomware_confirmed') return 'MODERATE';
       return 'LOW';
     },
   },
   {
-    id:   'gate3_readable_insuf',
+    id:'gate3_readable_insuf',
     label:'Gate 3 — Readable data + insufficient disposition',
-    desc: 'Data is readable AND disposition insufficient — significant harm risk',
+    desc:'Data is readable AND disposition insufficient — severity depends on recipient type and mitigation outcome',
     eval: s => {
       if (s.protection === null || s.protection <= 0.10) return null;
       if (s.disposition === null || s.disposition < 0.70) return null;
       if (s.recip_type === 'unauthorized') return 'EXTREME';
-      if (EXTREME_MIT.has(s.mit_key)) return 'EXTREME';
-      return 'HIGH';
+      // Authorized + insufficient: mitigation outcome determines severity
+      if (G3_EXTREME.has(s.mit_key))  return 'EXTREME';
+      if (G3_HIGH.has(s.mit_key))     return 'HIGH';
+      if (G3_MODERATE.has(s.mit_key)) return 'MODERATE';
+      return 'HIGH'; // default for any unmapped mitigation
     },
   },
   {
-    id:   'gate4_sufficient',
-    label:'Gate 4 — Readable data + sufficient disposition',
-    desc: 'Data is readable but situation was controlled',
+    id:'gate4_sufficient',
+    label:'Gate 4 — Readable data + sufficient disposition (fallthrough)',
+    desc:'Data is readable but situation was controlled — residual moderate risk',
     eval: s => {
       if (s.protection === null || s.protection <= 0.10) return null;
       if (s.disposition === null || s.disposition >= 0.70) return null;
@@ -753,19 +763,12 @@ const TREE_STEPS = [
   },
 ];
 
-// ── State ─────────────────────────────────────────────────────────────────────
-let currentResult = null;
-let radarResult   = null;
-let testLog       = JSON.parse(localStorage.getItem('riskLog') || '[]');
+let currentResult = null, radarResult = null;
+let testLog = JSON.parse(localStorage.getItem('riskLog') || '[]');
 
-function sevClass(sev) {
-  return {LOW:'sev-low',MODERATE:'sev-mod',HIGH:'sev-high',EXTREME:'sev-ext'}[sev]||'sev-none';
-}
-function sevBarColor(sev) {
-  return {LOW:'#1a7f37',MODERATE:'#9a6700',HIGH:'#bc4c00',EXTREME:'#8b2020'}[sev]||'#1f6feb';
-}
+function sevClass(sev) { return {LOW:'sev-low',MODERATE:'sev-mod',HIGH:'sev-high',EXTREME:'sev-ext'}[sev]||'sev-none'; }
+function sevBarColor(sev) { return {LOW:'#1a7f37',MODERATE:'#9a6700',HIGH:'#bc4c00',EXTREME:'#8b2020'}[sev]||'#1f6feb'; }
 
-// ── Main calculate ────────────────────────────────────────────────────────────
 function calc() {
   const prot    = parseFloat(document.getElementById('d_protection').value)  || null;
   const nat     = parseFloat(document.getElementById('d_nature').value)      || null;
@@ -775,223 +778,149 @@ function calc() {
   const disp    = parseFloat(document.getElementById('d_disposition').value) || null;
   const mit     = document.getElementById('d_mitigation').value              || null;
 
-  const state = {
-    protection:   prot,
-    nature:       nat,
-    compromise:   comp,
-    recip_type:   recip,
-    rec_desc_key: recDesc,
-    disposition:  disp,
-    mit_key:      mit,
-  };
+  const state = { protection:prot, nature:nat, compromise:comp, recip_type:recip,
+                  rec_desc_key:recDesc, disposition:disp, mit_key:mit };
 
   let finalSev = null, firedGate = null;
   for (const step of TREE_STEPS) {
     const res = step.eval(state);
     if (res !== null) { finalSev = res; firedGate = step.id; break; }
   }
-
   currentResult = { state, finalSev, firedGate, selectionLabels: getSelectionLabels() };
   renderResult(currentResult);
   updateMatch();
 }
 
 function getSelectionLabels() {
-  const getText = id => {
-    const el = document.getElementById(id);
-    return el.options[el.selectedIndex]?.text || '—';
-  };
-  return {
-    protection:  getText('d_protection'),
-    nature:      getText('d_nature'),
-    compromise:  getText('d_compromise'),
-    recipient:   getText('d_recipient'),
-    rec_desc:    getText('d_rec_desc'),
-    disposition: getText('d_disposition'),
-    mitigation:  getText('d_mitigation'),
-  };
+  const getText = id => { const el = document.getElementById(id); return el.options[el.selectedIndex]?.text || '—'; };
+  return { protection:getText('d_protection'), nature:getText('d_nature'), compromise:getText('d_compromise'),
+           recipient:getText('d_recipient'), rec_desc:getText('d_rec_desc'), disposition:getText('d_disposition'),
+           mitigation:getText('d_mitigation') };
 }
 
-// ── Render ────────────────────────────────────────────────────────────────────
 function renderResult(r) {
-  const card     = document.getElementById('result-card');
-  const sevDisp  = document.getElementById('sev-display');
-  const sevVal   = document.getElementById('sev-value');
+  const card = document.getElementById('result-card');
+  const sevDisp = document.getElementById('sev-display');
+  const sevVal = document.getElementById('sev-value');
   const scoreNum = document.getElementById('score-number');
-
-  ['sev-low','sev-mod','sev-high','sev-ext','sev-none'].forEach(c => {
-    card.classList.remove(c); sevDisp.classList.remove(c);
-  });
+  ['sev-low','sev-mod','sev-high','sev-ext','sev-none'].forEach(c => { card.classList.remove(c); sevDisp.classList.remove(c); });
 
   if (!r.finalSev) {
-    sevVal.textContent   = '—';
-    scoreNum.textContent = 'incomplete';
+    sevVal.textContent = '—'; scoreNum.textContent = 'incomplete';
     card.classList.add('sev-none'); sevDisp.classList.add('sev-none');
     document.getElementById('arc-fill').style.strokeDashoffset = '157';
     document.getElementById('arc-fill').style.stroke = '#30363d';
   } else {
-    sevVal.textContent   = r.finalSev;
+    sevVal.textContent = r.finalSev;
     scoreNum.textContent = r.firedGate.replace('gate','Gate ').replace(/_/g,' ');
-    const sc = sevClass(r.finalSev);
-    card.classList.add(sc); sevDisp.classList.add(sc);
-    const sevScores = {LOW:0.2, MODERATE:0.5, HIGH:0.75, EXTREME:1.0};
+    card.classList.add(sevClass(r.finalSev)); sevDisp.classList.add(sevClass(r.finalSev));
+    const sevScores = {LOW:0.2,MODERATE:0.5,HIGH:0.75,EXTREME:1.0};
     const arcEl = document.getElementById('arc-fill');
     arcEl.style.strokeDashoffset = 157 - (sevScores[r.finalSev] * 157);
     arcEl.style.stroke = sevBarColor(r.finalSev);
   }
 
-  // Decision tree walkthrough
   const barsEl = document.getElementById('bars');
   barsEl.innerHTML = '';
   for (const step of TREE_STEPS) {
-    const isFired  = step.id === r.firedGate;
+    const isFired = step.id === r.firedGate;
     const firedIdx = TREE_STEPS.findIndex(s => s.id === r.firedGate);
-    const stepIdx  = TREE_STEPS.findIndex(s => s.id === step.id);
+    const stepIdx = TREE_STEPS.findIndex(s => s.id === step.id);
     const isSkipped = firedIdx >= 0 && stepIdx > firedIdx;
-    const dotColor  = isFired ? sevBarColor(r.finalSev) : (isSkipped ? 'var(--border)' : 'var(--border2)');
-    const lblColor  = isFired ? 'var(--text)' : (isSkipped ? 'var(--border2)' : 'var(--muted)');
-    const badge     = isFired
-      ? `<span style="margin-left:8px;font-family:var(--mono);font-size:10px;font-weight:600;
-          padding:2px 6px;border-radius:3px;background:${sevBarColor(r.finalSev)}22;
-          color:${sevBarColor(r.finalSev)};border:1px solid ${sevBarColor(r.finalSev)}44">→ ${r.finalSev}</span>`
+    const dotColor = isFired ? sevBarColor(r.finalSev) : (isSkipped ? 'var(--border)' : 'var(--border2)');
+    const lblColor = isFired ? 'var(--text)' : (isSkipped ? 'var(--border2)' : 'var(--muted)');
+    const badge = isFired
+      ? `<span style="margin-left:8px;font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;background:${sevBarColor(r.finalSev)}22;color:${sevBarColor(r.finalSev)};border:1px solid ${sevBarColor(r.finalSev)}44">→ ${r.finalSev}</span>`
       : '';
-    barsEl.innerHTML += `
-      <div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);align-items:flex-start">
-        <div style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:5px"></div>
-        <div>
-          <div style="font-family:var(--mono);font-size:11px;color:${lblColor};font-weight:${isFired?'600':'400'}">
-            ${step.label}${badge}
-          </div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px">${step.desc}</div>
-        </div>
-      </div>`;
+    barsEl.innerHTML += `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);align-items:flex-start">
+      <div style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:5px"></div>
+      <div><div style="font-family:var(--mono);font-size:11px;color:${lblColor};font-weight:${isFired?'600':'400'}">${step.label}${badge}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">${step.desc}</div></div></div>`;
   }
 
-  // State summary
   const ovEl = document.getElementById('override-list');
   ovEl.innerHTML = '';
   const s = r.state;
-  const facts = [
-    {label:'Protection',     val: s.protection !== null ? (s.protection <= 0.10 ? 'De-identified ✓' : 'Readable') : '—',             hi: s.protection !== null && s.protection <= 0.10},
-    {label:'Recipient type', val: s.recip_type ? (s.recip_type === 'authorized' ? 'Authorized' : 'Unauthorized') : '—',               hi: s.recip_type === 'authorized'},
-    {label:'Disposition',    val: s.disposition !== null ? (s.disposition < 0.70 ? 'Sufficient ✓' : 'Insufficient') : '—',            hi: s.disposition !== null && s.disposition < 0.70},
-    {label:'Mitigation gate',val: s.mit_key ? (CONFIRMED_SAFE.has(s.mit_key) ? 'Confirmed safe ✓' : (ASSURED_SAFE.has(s.mit_key) ? 'Assured safe' : (EXTREME_MIT.has(s.mit_key) ? 'Extreme trigger ⚠' : 'Standard'))) : '—',
-      hi: s.mit_key && CONFIRMED_SAFE.has(s.mit_key)},
-  ];
-  for (const f of facts) {
-    ovEl.innerHTML += `
-      <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
-        <span style="color:var(--muted);font-family:var(--mono)">${f.label}</span>
-        <span style="font-family:var(--mono);color:${f.hi ? 'var(--low-text)' : 'var(--text)'}">${f.val}</span>
-      </div>`;
-  }
+  const isDeId = s.protection !== null && s.protection <= 0.10;
+  const isObl = s.rec_desc_key && LEGALLY_OBLIGATED.has(s.rec_desc_key);
+  const mitClass = s.mit_key
+    ? (CONFIRMED_SAFE.has(s.mit_key) ? 'Confirmed safe ✓'
+      : (s.mit_key === 'satisfactory' && isObl ? 'Satisfactory (obligated) ✓'
+      : (ASSURED_SAFE.has(s.mit_key) ? (isDeId ? 'Assured (de-id → LOW)' : 'Assured safe → MODERATE')
+      : (G3_EXTREME.has(s.mit_key) ? 'Extreme trigger ⚠'
+      : (GATE2_BAD_MIT.has(s.mit_key) ? 'Bad outcome' : 'Standard')))))
+    : '—';
+  [
+    {label:'Protection',      val: s.protection !== null ? (isDeId ? 'De-identified ✓' : 'Readable') : '—', hi: isDeId},
+    {label:'Recipient type',  val: s.recip_type ? (s.recip_type==='authorized'?'Authorized':'Unauthorized') : '—', hi: s.recip_type==='authorized'},
+    {label:'Legally obligated',val: s.rec_desc_key ? (isObl ? 'Yes ✓' : 'No') : '—', hi: isObl},
+    {label:'Disposition',     val: s.disposition !== null ? (s.disposition<0.70?'Sufficient ✓':'Insufficient') : '—', hi: s.disposition!==null && s.disposition<0.70},
+    {label:'Mitigation class', val: mitClass, hi: s.mit_key && (CONFIRMED_SAFE.has(s.mit_key)||(s.mit_key==='satisfactory'&&isObl))},
+  ].forEach(f => {
+    ovEl.innerHTML += `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
+      <span style="color:var(--muted);font-family:var(--mono)">${f.label}</span>
+      <span style="font-family:var(--mono);color:${f.hi?'var(--low-text)':'var(--text)'}">${f.val}</span></div>`;
+  });
 }
 
-// ── RadarFirst compare ────────────────────────────────────────────────────────
 function setRadar(sev) {
   radarResult = sev;
-  document.querySelectorAll('.sev-btn').forEach(b => {
-    b.className = 'sev-btn';
-    if (b.dataset.sev === sev) b.classList.add('selected-' + sev);
-  });
+  document.querySelectorAll('.sev-btn').forEach(b => { b.className='sev-btn'; if(b.dataset.sev===sev) b.classList.add('selected-'+sev); });
   updateMatch();
 }
-
 function updateMatch() {
   const el = document.getElementById('match-result');
-  if (!radarResult) { el.textContent = 'select RadarFirst output above'; el.className = 'match-result'; return; }
-  if (!currentResult?.finalSev) { el.textContent = 'complete all inputs to compare'; el.className = 'match-result'; return; }
-  if (currentResult.finalSev === radarResult) {
-    el.textContent = '✔  MATCH — ' + currentResult.finalSev;
-    el.className = 'match-result match';
-  } else {
-    el.textContent = '✘  MISMATCH — Ours: ' + currentResult.finalSev + '  RF: ' + radarResult;
-    el.className = 'match-result mismatch';
-  }
+  if (!radarResult) { el.textContent='select RadarFirst output above'; el.className='match-result'; return; }
+  if (!currentResult?.finalSev) { el.textContent='complete all inputs to compare'; el.className='match-result'; return; }
+  if (currentResult.finalSev === radarResult) { el.textContent='✔  MATCH — '+currentResult.finalSev; el.className='match-result match'; }
+  else { el.textContent='✘  MISMATCH — Ours: '+currentResult.finalSev+'  RF: '+radarResult; el.className='match-result mismatch'; }
 }
 
-// ── Test log ──────────────────────────────────────────────────────────────────
 function logCase() {
   if (!currentResult?.finalSev) { alert('Please complete all dimension inputs first.'); return; }
   const lbl = currentResult.selectionLabels;
-  const entry = {
-    id: Date.now(),
-    protection:  lbl.protection,
-    nature:      lbl.nature,
-    compromise:  lbl.compromise,
-    rec_desc:    lbl.rec_desc,
-    disposition: lbl.disposition,
-    mitigation:  lbl.mitigation,
-    gate:        currentResult.firedGate || '—',
-    ours:        currentResult.finalSev,
-    radar:       radarResult || '—',
-    match:       radarResult ? (currentResult.finalSev === radarResult ? 'MATCH' : 'MISMATCH') : 'PENDING',
-  };
-  testLog.push(entry);
+  testLog.push({ id:Date.now(), protection:lbl.protection, nature:lbl.nature, compromise:lbl.compromise,
+    rec_desc:lbl.rec_desc, disposition:lbl.disposition, mitigation:lbl.mitigation,
+    gate:currentResult.firedGate||'—', ours:currentResult.finalSev, radar:radarResult||'—',
+    match:radarResult?(currentResult.finalSev===radarResult?'MATCH':'MISMATCH'):'PENDING' });
   localStorage.setItem('riskLog', JSON.stringify(testLog));
   renderLog();
 }
-
-function deleteCase(id) {
-  testLog = testLog.filter(e => e.id !== id);
-  localStorage.setItem('riskLog', JSON.stringify(testLog));
-  renderLog();
-}
+function deleteCase(id) { testLog=testLog.filter(e=>e.id!==id); localStorage.setItem('riskLog',JSON.stringify(testLog)); renderLog(); }
+function shorten(str,n) { return str&&str.length>n?str.slice(0,n)+'…':(str||'—'); }
 
 function renderLog() {
-  const tbody = document.getElementById('log-body');
-  const empty = document.getElementById('empty-msg');
-  const wrap  = document.getElementById('log-table-wrap');
-  document.getElementById('log-count').textContent =
-    testLog.length + ' case' + (testLog.length !== 1 ? 's' : '') + ' logged';
-
-  if (testLog.length === 0) { empty.style.display='block'; wrap.style.display='none'; return; }
-  empty.style.display = 'none'; wrap.style.display = 'block';
-
-  tbody.innerHTML = testLog.map((e, i) => `
-    <tr>
-      <td style="color:var(--muted);font-family:var(--mono)">${i+1}</td>
-      <td title="${e.protection}">${shorten(e.protection,22)}</td>
-      <td title="${e.nature}">${shorten(e.nature,18)}</td>
-      <td title="${e.compromise}">${shorten(e.compromise,18)}</td>
-      <td title="${e.rec_desc}">${shorten(e.rec_desc,20)}</td>
-      <td title="${e.disposition}">${shorten(e.disposition,16)}</td>
-      <td title="${e.mitigation}">${shorten(e.mitigation,22)}</td>
-      <td style="font-family:var(--mono);font-size:10px;color:var(--muted)" title="${e.gate}">${shorten(e.gate,14)}</td>
-      <td><span class="tag tag-${e.ours}">${e.ours}</span></td>
-      <td><span class="tag tag-${e.radar}">${e.radar}</span></td>
-      <td><span class="tag tag-${e.match}">${e.match}</span></td>
-      <td><button class="btn danger" style="padding:3px 8px;font-size:10px" onclick="deleteCase(${e.id})">del</button></td>
+  const tbody=document.getElementById('log-body'), empty=document.getElementById('empty-msg'), wrap=document.getElementById('log-table-wrap');
+  document.getElementById('log-count').textContent=testLog.length+' case'+(testLog.length!==1?'s':'')+' logged';
+  if (testLog.length===0) { empty.style.display='block'; wrap.style.display='none'; return; }
+  empty.style.display='none'; wrap.style.display='block';
+  tbody.innerHTML=testLog.map((e,i)=>`<tr>
+    <td style="color:var(--muted);font-family:var(--mono)">${i+1}</td>
+    <td title="${e.protection}">${shorten(e.protection,22)}</td>
+    <td title="${e.nature}">${shorten(e.nature,18)}</td>
+    <td title="${e.compromise}">${shorten(e.compromise,18)}</td>
+    <td title="${e.rec_desc}">${shorten(e.rec_desc,20)}</td>
+    <td title="${e.disposition}">${shorten(e.disposition,16)}</td>
+    <td title="${e.mitigation}">${shorten(e.mitigation,22)}</td>
+    <td style="font-family:var(--mono);font-size:10px;color:var(--muted)" title="${e.gate}">${shorten(e.gate,14)}</td>
+    <td><span class="tag tag-${e.ours}">${e.ours}</span></td>
+    <td><span class="tag tag-${e.radar}">${e.radar}</span></td>
+    <td><span class="tag tag-${e.match}">${e.match}</span></td>
+    <td><button class="btn danger" style="padding:3px 8px;font-size:10px" onclick="deleteCase(${e.id})">del</button></td>
     </tr>`).join('');
 }
 
-function shorten(str, n) {
-  return str && str.length > n ? str.slice(0,n)+'…' : (str||'—');
-}
-
-function clearLog() {
-  if (!confirm('Clear all ' + testLog.length + ' test cases?')) return;
-  testLog = []; localStorage.setItem('riskLog', JSON.stringify(testLog)); renderLog();
-}
-
+function clearLog() { if(!confirm('Clear all '+testLog.length+' test cases?')) return; testLog=[]; localStorage.setItem('riskLog',JSON.stringify(testLog)); renderLog(); }
 function exportCSV() {
-  if (testLog.length === 0) { alert('No cases to export.'); return; }
-  const headers = ['#','Protection','Incident Nature','Compromise','Recipient Description','Disposition','Mitigation','Gate Fired','Our Result','RadarFirst','Match'];
-  const rows = testLog.map((e,i) => [
-    i+1,`"${e.protection}"`,`"${e.nature}"`,`"${e.compromise}"`,
-    `"${e.rec_desc}"`,`"${e.disposition}"`,`"${e.mitigation}"`,
-    `"${e.gate||''}"`,e.ours,e.radar,e.match
-  ]);
-  const csv = [headers,...rows].map(r=>r.join(',')).join('\n');
-  const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
-  a.download = 'risk_test_log_' + new Date().toISOString().slice(0,10) + '.csv';
-  a.click();
+  if (!testLog.length) { alert('No cases to export.'); return; }
+  const headers=['#','Protection','Incident Nature','Compromise','Recipient Description','Disposition','Mitigation','Gate Fired','Our Result','RadarFirst','Match'];
+  const rows=testLog.map((e,i)=>[i+1,`"${e.protection}"`,`"${e.nature}"`,`"${e.compromise}"`,`"${e.rec_desc}"`,`"${e.disposition}"`,`"${e.mitigation}"`,`"${e.gate||''}"`,e.ours,e.radar,e.match]);
+  const csv=[headers,...rows].map(r=>r.join(',')).join('\n');
+  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='risk_test_log_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
 }
 
-// ── Init ──────────────────────────────────────────────────────────────────────
-renderLog();
-calc();
+renderLog(); calc();
 </script>
 </body>
 </html>
