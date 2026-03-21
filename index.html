@@ -112,7 +112,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);font-
 <header>
   <div>
     <div class="badge">Breach Risk Assessment</div>
-    <div class="badge badge-fix">v12 — 6 fixes applied</div>
+    <div class="badge badge-fix">v12 — Category dropdown added</div>
   </div>
   <h1>Risk Scoring Calculator</h1>
   <p class="subtitle">Select values across all 7 dimensions → compare output against RadarFirst → log discrepancies</p>
@@ -130,18 +130,21 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);font-
       <div class="card-header"><div class="dot"></div><span>Dimension Inputs</span></div>
       <div class="card-body">
         <div class="dim-row">
-          <div class="dim-label"><strong>1. Protection Measure</strong>gate 2 trigger</div>
-          <select id="d_protection" onchange="calc()">
+          <div class="dim-label"><strong>1. Category</strong>filters protection list</div>
+          <select id="d_category" onchange="onCategoryChange()">
             <option value="">— select —</option>
-            <option value="0.10">Statistically de-identified</option>
-            <option value="0.20">Redacted</option>
-            <option value="0.30">Limited data set</option>
-            <option value="0.25">Under physical safeguard</option>
-            <option value="0.85">In plain text</option>
+            <option value="paper">Paper</option>
+            <option value="electronic">Electronic</option>
           </select>
         </div>
         <div class="dim-row">
-          <div class="dim-label"><strong>2. Incident Nature</strong>filters compromise list</div>
+          <div class="dim-label"><strong>2. Protection Measure</strong>filtered by category</div>
+          <select id="d_protection" onchange="calc()">
+            <option value="">— select category first —</option>
+          </select>
+        </div>
+        <div class="dim-row">
+          <div class="dim-label"><strong>3. Incident Nature</strong>filters compromise list</div>
           <select id="d_nature" onchange="onNatureChange()">
             <option value="">— select —</option>
             <option value="0.85">Intentional, malicious</option>
@@ -150,11 +153,11 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);font-
           </select>
         </div>
         <div class="dim-row">
-          <div class="dim-label"><strong>3. Compromise Description</strong>filtered by nature</div>
+          <div class="dim-label"><strong>4. Compromise Description</strong>filtered by nature</div>
           <select id="d_compromise" onchange="calc()"><option value="">— select nature first —</option></select>
         </div>
         <div class="dim-row">
-          <div class="dim-label"><strong>4. Recipient</strong>filters description list</div>
+          <div class="dim-label"><strong>5. Recipient</strong>filters description list</div>
           <select id="d_recipient" onchange="onRecipientChange()">
             <option value="">— select —</option>
             <option value="authorized">Generally authorized person or organization</option>
@@ -162,11 +165,11 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);font-
           </select>
         </div>
         <div class="dim-row">
-          <div class="dim-label"><strong>5. Recipient Description</strong>filtered by recipient</div>
+          <div class="dim-label"><strong>6. Recipient Description</strong>filtered by recipient</div>
           <select id="d_rec_desc" onchange="calc()"><option value="">— select recipient first —</option></select>
         </div>
         <div class="dim-row">
-          <div class="dim-label"><strong>6. Disposition</strong>gate 3 trigger</div>
+          <div class="dim-label"><strong>7. Disposition</strong>gate 3 trigger</div>
           <select id="d_disposition" onchange="onDispositionChange()">
             <option value="">— select —</option>
             <option value="0.15">Sufficient risk mitigation</option>
@@ -174,7 +177,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);font-
           </select>
         </div>
         <div class="dim-row">
-          <div class="dim-label"><strong>7. Mitigation Name</strong>filtered by disposition</div>
+          <div class="dim-label"><strong>8. Mitigation Name</strong>filtered by disposition</div>
           <select id="d_mitigation" onchange="calc()"><option value="">— select disposition first —</option></select>
         </div>
       </div>
@@ -248,7 +251,7 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);font-
         <div class="empty-log" id="empty-msg">No test cases logged yet.</div>
         <div class="log-table-wrap" id="log-table-wrap" style="display:none">
           <table>
-            <thead><tr><th>#</th><th>Protection</th><th>Incident</th><th>Compromise</th><th>Recipient Desc</th><th>Disposition</th><th>Mitigation</th><th>Gate</th><th>Ours</th><th>RadarFirst</th><th>Match</th><th></th></tr></thead>
+            <thead><tr><th>#</th><th>Category</th><th>Protection</th><th>Incident</th><th>Compromise</th><th>Recipient Desc</th><th>Disposition</th><th>Mitigation</th><th>Gate</th><th>Ours</th><th>RadarFirst</th><th>Match</th><th></th></tr></thead>
             <tbody id="log-body"></tbody>
           </table>
         </div>
@@ -261,6 +264,36 @@ footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);font-
 </div>
 
 <script>
+const PROTECTION_BY_CATEGORY = {
+  'paper': [
+    {val:'0.10', label:'Statistically de-identified'},
+    {val:'0.20', label:'Redacted'},
+    {val:'0.30', label:'Limited data set'},
+    {val:'0.25', label:'Under physical safeguard'},
+    {val:'0.85', label:'In plain text'},
+  ],
+  'electronic': [
+    // Encrypted group — grouped with optgroup-style labels via disabled options
+    {val:'', label:'── Encrypted ──', disabled:true},
+    {val:'0.20', label:'Encrypted — Meets NIST standard, key not compromised, no evidence of access'},
+    {val:'0.25', label:'Encrypted — Unsure of NIST standard, key not compromised, no evidence of access'},
+    {val:'0.30', label:'Encrypted — No evidence of access but unsure of encryption key security'},
+    {val:'0.85', label:'Encrypted — Encryption key was compromised'},
+    {val:'0.85', label:'Encrypted — Evidence of access with valid credentials'},
+    // Password protected group
+    {val:'', label:'── Password protected ──', disabled:true},
+    {val:'0.25', label:'Password protected — Password was not compromised'},
+    {val:'0.85', label:'Password protected — Password was compromised'},
+    // Other
+    {val:'', label:'── Other ──', disabled:true},
+    {val:'0.10', label:'Statistically de-identified'},
+    {val:'0.20', label:'Redacted'},
+    {val:'0.30', label:'Limited data set'},
+    {val:'0.85', label:'Data is identifiable or can be re-identified'},
+    {val:'0.85', label:'No protection measures were present'},
+  ],
+};
+
 const COMPROMISE_BY_NATURE = {
   '0.85':[{val:'ransomware',label:'Ransomware'},{val:'hacking',label:'Hacking or malware other than ransomware'},{val:'theft',label:'Theft'},{val:'unauth_access',label:'Unauthorized access'},{val:'unauth_use',label:'Unauthorized use'},{val:'disclosure',label:'Disclosure'},{val:'unknown',label:'Unknown'}],
   '0.45':[{val:'disclosure',label:'Disclosure'},{val:'improper_disposal',label:'Improper disposal'},{val:'it_incident',label:'IT incident'},{val:'unauth_access',label:'Unauthorized access'},{val:'unauth_use',label:'Unauthorized use'}],
@@ -276,6 +309,23 @@ const MITIGATION_BY_DISPOSITION = {
 };
 
 function populateSelect(id,items,placeholder){const el=document.getElementById(id);el.innerHTML=`<option value="">— ${placeholder} —</option>`;items.forEach(i=>{const o=document.createElement('option');o.value=i.val;o.textContent=i.label;el.appendChild(o)})}
+function onCategoryChange(){
+  const cat=document.getElementById('d_category').value;
+  const items=PROTECTION_BY_CATEGORY[cat]||[];
+  const el=document.getElementById('d_protection');
+  el.innerHTML=cat?'':'<option value="">— select category first —</option>';
+  if(!cat){calc();return;}
+  items.forEach(item=>{
+    const opt=document.createElement('option');
+    opt.value=item.val;
+    opt.textContent=item.label;
+    if(item.disabled){opt.disabled=true;opt.style.color='var(--muted)';opt.style.fontWeight='600';}
+    el.appendChild(opt);
+  });
+  // reset protection selection when category changes
+  el.value='';
+  calc();
+}
 function onNatureChange(){const n=document.getElementById('d_nature').value;const i=COMPROMISE_BY_NATURE[n]||[];populateSelect('d_compromise',i,i.length?'select compromise':'select nature first');calc()}
 function onRecipientChange(){const r=document.getElementById('d_recipient').value;const i=REC_DESC_BY_RECIPIENT[r]||[];populateSelect('d_rec_desc',i,i.length?'select description':'select recipient first');calc()}
 function onDispositionChange(){const d=document.getElementById('d_disposition').value;const i=MITIGATION_BY_DISPOSITION[d]||[];populateSelect('d_mitigation',i,i.length?'select mitigation':'select disposition first');calc()}
@@ -398,7 +448,7 @@ function calc(){
 
 function getSelectionLabels(){
   const g=id=>{const e=document.getElementById(id);return e.options[e.selectedIndex]?.text||'—'};
-  return{protection:g('d_protection'),nature:g('d_nature'),compromise:g('d_compromise'),recipient:g('d_recipient'),rec_desc:g('d_rec_desc'),disposition:g('d_disposition'),mitigation:g('d_mitigation')};
+  return{category:g('d_category'),protection:g('d_protection'),nature:g('d_nature'),compromise:g('d_compromise'),recipient:g('d_recipient'),rec_desc:g('d_rec_desc'),disposition:g('d_disposition'),mitigation:g('d_mitigation')};
 }
 
 function renderResult(r){
@@ -522,7 +572,7 @@ function toggleRegDetails(){
 function logCase(){
   if(!currentResult?.finalSev){alert('Please complete all dimension inputs first.');return}
   const l=currentResult.selectionLabels;
-  testLog.push({id:Date.now(),protection:l.protection,nature:l.nature,compromise:l.compromise,rec_desc:l.rec_desc,disposition:l.disposition,mitigation:l.mitigation,gate:currentResult.firedGate||'—',ours:currentResult.finalSev,radar:radarResult||'—',match:radarResult?(currentResult.finalSev===radarResult?'MATCH':'MISMATCH'):'PENDING'});
+  testLog.push({id:Date.now(),category:l.category,protection:l.protection,nature:l.nature,compromise:l.compromise,rec_desc:l.rec_desc,disposition:l.disposition,mitigation:l.mitigation,gate:currentResult.firedGate||'—',ours:currentResult.finalSev,radar:radarResult||'—',match:radarResult?(currentResult.finalSev===radarResult?'MATCH':'MISMATCH'):'PENDING'});
   localStorage.setItem('riskLog_v12',JSON.stringify(testLog));renderLog();
 }
 function deleteCase(id){testLog=testLog.filter(e=>e.id!==id);localStorage.setItem('riskLog_v12',JSON.stringify(testLog));renderLog()}
@@ -533,13 +583,13 @@ function renderLog(){
   document.getElementById('log-count').textContent=testLog.length+' case'+(testLog.length!==1?'s':'')+' logged';
   if(!testLog.length){em.style.display='block';wr.style.display='none';return}
   em.style.display='none';wr.style.display='block';
-  tb.innerHTML=testLog.map((e,i)=>`<tr><td style="color:var(--muted);font-family:var(--mono)">${i+1}</td><td title="${e.protection}">${sho(e.protection,22)}</td><td title="${e.nature}">${sho(e.nature,18)}</td><td title="${e.compromise}">${sho(e.compromise,18)}</td><td title="${e.rec_desc}">${sho(e.rec_desc,20)}</td><td title="${e.disposition}">${sho(e.disposition,16)}</td><td title="${e.mitigation}">${sho(e.mitigation,22)}</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${sho(e.gate,14)}</td><td><span class="tag tag-${e.ours}">${e.ours}</span></td><td><span class="tag tag-${e.radar}">${e.radar}</span></td><td><span class="tag tag-${e.match}">${e.match}</span></td><td><button class="btn danger" style="padding:3px 8px;font-size:10px" onclick="deleteCase(${e.id})">del</button></td></tr>`).join('');
+  tb.innerHTML=testLog.map((e,i)=>`<tr><td style="color:var(--muted);font-family:var(--mono)">${i+1}</td><td>${sho(e.category,10)}</td><td title="${e.protection}">${sho(e.protection,22)}</td><td title="${e.nature}">${sho(e.nature,18)}</td><td title="${e.compromise}">${sho(e.compromise,18)}</td><td title="${e.rec_desc}">${sho(e.rec_desc,20)}</td><td title="${e.disposition}">${sho(e.disposition,16)}</td><td title="${e.mitigation}">${sho(e.mitigation,22)}</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${sho(e.gate,14)}</td><td><span class="tag tag-${e.ours}">${e.ours}</span></td><td><span class="tag tag-${e.radar}">${e.radar}</span></td><td><span class="tag tag-${e.match}">${e.match}</span></td><td><button class="btn danger" style="padding:3px 8px;font-size:10px" onclick="deleteCase(${e.id})">del</button></td></tr>`).join('');
 }
 function clearLog(){if(!confirm('Clear all '+testLog.length+' test cases?'))return;testLog=[];localStorage.setItem('riskLog_v12',JSON.stringify(testLog));renderLog()}
 function exportCSV(){
   if(!testLog.length){alert('No cases to export.');return}
-  const h=['#','Protection','Incident Nature','Compromise','Recipient Description','Disposition','Mitigation','Gate Fired','Our Result','RadarFirst','Match'];
-  const r=testLog.map((e,i)=>[i+1,`"${e.protection}"`,`"${e.nature}"`,`"${e.compromise}"`,`"${e.rec_desc}"`,`"${e.disposition}"`,`"${e.mitigation}"`,`"${e.gate||''}"`,e.ours,e.radar,e.match]);
+  const h=['#','Category','Protection','Incident Nature','Compromise','Recipient Description','Disposition','Mitigation','Gate Fired','Our Result','RadarFirst','Match'];
+  const r=testLog.map((e,i)=>[i+1,`"${e.category||''}"`,`"${e.protection}"`,`"${e.nature}"`,`"${e.compromise}"`,`"${e.rec_desc}"`,`"${e.disposition}"`,`"${e.mitigation}"`,`"${e.gate||''}"`,e.ours,e.radar,e.match]);
   const csv=[h,...r].map(x=>x.join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download='risk_test_log_v10_'+new Date().toISOString().slice(0,10)+'.csv';a.click();

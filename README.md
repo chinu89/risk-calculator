@@ -410,3 +410,93 @@ static final Set<String> G3_MODERATE = Set.of("unsure_backup");
 ```
 
 No formulas, no weights — only set membership checks and two numeric threshold comparisons (`<= 0.10` and `>= 0.70`).
+
+---
+
+## Electronic Category — Protection Measures and Score Assignments
+
+### What changed in the UI
+
+A new **Category** dropdown (dimension 1) was added just before Protection Measure, making it now 8 dimensions total. Selecting Paper or Electronic populates the Protection Measure dropdown with the relevant options. All other dimensions and tree logic are unchanged.
+
+### Paper protection measures (unchanged)
+
+| Option | Score | Tree routing |
+|---|---|---|
+| Statistically de-identified | 0.10 | Gate 2 (de-id path) |
+| Redacted | 0.20 | Readable (>0.10) |
+| Under physical safeguard | 0.25 | Readable (>0.10) |
+| Limited data set | 0.30 | Readable (>0.10) |
+| In plain text | 0.85 | Readable (>0.10) |
+
+### Electronic protection measures and score assignments
+
+Scores were assigned by analogy to Paper, reasoning from the strength of protection each option implies:
+
+| Group | Option | Score | Analogy |
+|---|---|---|---|
+| Encrypted | Meets NIST standard, key not compromised, no evidence of access | 0.20 | Redacted — strong protection, no access confirmed |
+| Encrypted | Unsure of NIST standard, key not compromised, no evidence of access | 0.25 | Under physical safeguard — protected but some uncertainty |
+| Encrypted | No evidence of access but unsure of encryption key security | 0.30 | Limited data set — no access but key may be at risk |
+| Encrypted | Encryption key was compromised | 0.85 | In plain text — protection defeated |
+| Encrypted | Evidence of access with valid credentials | 0.85 | In plain text — access confirmed |
+| Password protected | Password was not compromised | 0.25 | Under physical safeguard — some protection, weaker than encryption |
+| Password protected | Password was compromised | 0.85 | In plain text — protection defeated |
+| — | Statistically de-identified | 0.10 | Same as Paper |
+| — | Redacted | 0.20 | Same as Paper |
+| — | Limited data set | 0.30 | Same as Paper |
+| — | Data is identifiable or can be re-identified | 0.85 | In plain text — readable |
+| — | No protection measures were present | 0.85 | In plain text — worst case |
+
+### Does the current tree handle Electronic correctly?
+
+**Short answer: yes, for the same reason it handles Redacted and Physical safeguard identically in Gate 3** — the tree only uses two thresholds from the protection score:
+
+1. `<= 0.10` — de-identified (routes to Gate 2)
+2. `> 0.10` — readable (routes to Gate 1a exception, Gate 1b, Gate 3)
+
+Within "readable", the specific score (0.20 vs 0.25 vs 0.30 vs 0.85) has never changed a result across all 54 verified Paper cases. N9 (Redacted/0.20) and S1 (Physical safeguard/0.25) both give the same Gate 3 result with the same mitigation. This means all Electronic readable options — from NIST-encrypted (0.20) to no-protection-present (0.85) — will route through the same gate paths as their Paper score equivalents.
+
+**Gate-by-gate breakdown:**
+
+- **Gate 1a** — Unaffected. Fires on mitigation key, not protection score. The `> 0.10` exception check works correctly: de-identified Electronic (0.10) is excluded, all readable Electronic options are included.
+- **Gate 1b** — Unaffected. The `<= 0.10` de-id check works for Electronic de-identified. All readable Electronic options escalate correctly by recipient type and intent.
+- **Gate 2** — Only Electronic "Statistically de-identified" (0.10) reaches here. All other Electronic options are `> 0.10` and skip Gate 2 entirely.
+- **Gate 3** — All readable Electronic options (0.20–0.85) trigger Gate 3 when disposition is insufficient. Results are driven by recipient type and mitigation bucket — same as for Paper.
+
+### How RadarFirst likely calculates risk (our best reverse-engineered model)
+
+Based on 54 empirically verified cases, Radar appears to use a **weighted scoring system internally, but with extreme weights** — one factor dominates at each tier, making it faithfully approximable by a priority decision tree.
+
+**Step 1 — Mitigation quality (most decisive factor)**  
+CONFIRMED_SAFE mitigations (forensic, backup, unopened, no_retain) override everything else to LOW. Legally-obligated satisfactory and no-written mitigations also resolve LOW for authorized obligated recipients. ASSURED_SAFE mitigations resolve MODERATE, escalated by recipient dangerousness and intent.
+
+**Step 2 — Protection classification**  
+Once Step 1 doesn't fire, the protection score applies one binary split: de-identified (≤0.10) routes to Gate 2 for mostly-LOW outcomes; readable (>0.10) continues to Gate 3.
+
+**Step 3 — Readable + insufficient**  
+Unauthorized recipient → always EXTREME. Authorized recipient → severity tier determined by mitigation outcome (G3_EXTREME, G3_HIGH, G3_MODERATE).
+
+**What we don't yet know about Electronic**  
+The key open question is whether Radar treats strong Electronic encryption options differently at Step 2 — specifically, whether "Encrypted, NIST-compliant, key intact, no evidence of access" acts more like a CONFIRMED_SAFE mitigation (overriding Step 3 entirely) rather than just a protection score. Our tree currently treats it as a score of 0.20 (readable), which means it still reaches Gate 3. If Radar actually returns LOW for this combination regardless of mitigation, we'd need to add a new check.
+
+### Recommended Electronic test cases to run in Radar
+
+Run these before treating Electronic results as fully verified. They test the most likely deviation points:
+
+| ID | Protection | Recipient | Disposition | Mitigation | Prediction | What it tests |
+|---|---|---|---|---|---|---|
+| E1 | Encrypted — NIST ok | authorized / covered entity | Insufficient | Unable to retrieve | HIGH | Does enc_nist_ok in Gate 3 behave like Redacted (N9)? |
+| E2 | Encrypted — NIST ok | authorized / covered entity | Sufficient | Forensic | LOW | Does CONFIRMED_SAFE mitigation override enc_nist_ok? |
+| E3 | Encrypted — key compromised | unauthorized / hacker | Insufficient | Unable to retrieve | EXTREME | Does defeated encryption still give EXTREME for unauthorized? |
+| E4 | Encrypted — NIST ok | unauthorized / hacker | Insufficient | Unable to retrieve | EXTREME | Does strong encryption lower EXTREME for unauthorized? |
+| E5 | No protection present | authorized / covered entity | Insufficient | Confirmed viewing | HIGH | Does worst-case Electronic match paper plain text in Gate 3? |
+| E6 | Encrypted — NIST ok | authorized / covered entity | Sufficient | No written assurance obtained | LOW | Does no_written + obligated + authorized = LOW for Electronic? |
+| E7 | Password not compromised | authorized / business associate | Insufficient | Unable to retrieve | HIGH | Does password-protected behave like physical safeguard? |
+
+**If all 7 match predictions:** No code changes needed — the tree handles Electronic correctly with current score assignments.
+
+**If E2 differs (enc_nist_ok + forensic ≠ LOW):** The CONFIRMED_SAFE mitigation override may not apply to certain Electronic protection states — a new Gate 1a sub-rule would be needed.
+
+**If E1 and E4 differ from each other** (enc_nist_ok gives a different Gate 3 result than enc_key_compromised for the same inputs): A third protection threshold would be needed — e.g., `<= 0.20` = "encrypted/partially protected" as a distinct tier from readable.
+
