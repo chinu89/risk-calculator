@@ -7,934 +7,542 @@
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg:        #0d1117;
-  --surface:   #161b22;
-  --surface2:  #1c2128;
-  --border:    #30363d;
-  --border2:   #3d444d;
-  --text:      #e6edf3;
-  --muted:     #7d8590;
-  --accent:    #58a6ff;
-  --accent2:   #1f6feb;
-
-  --low:       #1a7f37;
-  --low-bg:    #0d2818;
-  --low-text:  #3fb950;
-  --mod:       #9a6700;
-  --mod-bg:    #2d1f00;
-  --mod-text:  #d29922;
-  --high:      #bc4c00;
-  --high-bg:   #2d1500;
-  --high-text: #f0883e;
-  --ext:       #8b2020;
-  --ext-bg:    #2d0000;
-  --ext-text:  #ff7b72;
-
-  --mono: 'IBM Plex Mono', monospace;
-  --sans: 'IBM Plex Sans', sans-serif;
+  --bg:#0d1117; --surface:#161b22; --surface2:#1c2128;
+  --border:#30363d; --border2:#3d444d; --text:#e6edf3; --muted:#7d8590;
+  --accent:#58a6ff; --accent2:#1f6feb;
+  --low:#1a7f37; --low-bg:#0d2818; --low-text:#3fb950;
+  --mod:#9a6700; --mod-bg:#2d1f00; --mod-text:#d29922;
+  --high:#bc4c00; --high-bg:#2d1500; --high-text:#f0883e;
+  --ext:#8b2020; --ext-bg:#2d0000; --ext-text:#ff7b72;
+  --mono:'IBM Plex Mono',monospace; --sans:'IBM Plex Sans',sans-serif;
 }
-
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--sans);
-  font-size: 14px;
-  line-height: 1.6;
-  min-height: 100vh;
-}
-
-/* ── scanline texture overlay ── */
-body::before {
-  content: '';
-  position: fixed; inset: 0;
-  background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
-  pointer-events: none; z-index: 0;
-}
-
-.wrap { max-width: 900px; margin: 0 auto; padding: 32px 24px; position: relative; z-index: 1; }
-
-/* ── header ── */
-header { border-bottom: 1px solid var(--border); padding-bottom: 24px; margin-bottom: 32px; }
-
-.badge {
-  display: inline-block;
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--accent);
-  border: 1px solid var(--accent2);
-  padding: 3px 8px;
-  border-radius: 3px;
-  margin-bottom: 12px;
-}
-
-h1 {
-  font-family: var(--mono);
-  font-size: 22px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text);
-  margin-bottom: 6px;
-}
-
-.subtitle { color: var(--muted); font-size: 13px; }
-
-/* ── two-column layout ── */
-.grid { display: grid; grid-template-columns: 1fr 280px; gap: 20px; align-items: start; }
-
-@media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
-
-/* ── card ── */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  overflow: hidden;
-}
-
-.card-header {
-  background: var(--surface2);
-  border-bottom: 1px solid var(--border);
-  padding: 10px 16px;
-  display: flex; align-items: center; gap: 8px;
-}
-
-.card-header .dot {
-  width: 7px; height: 7px; border-radius: 50%;
-  background: var(--accent);
-  flex-shrink: 0;
-}
-
-.card-header span {
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-
-.card-body { padding: 16px; }
-
-/* ── dimension rows ── */
-.dim-row {
-  display: grid;
-  grid-template-columns: 180px 1fr;
-  gap: 10px;
-  align-items: start;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border);
-}
-.dim-row:last-child { border-bottom: none; }
-
-.dim-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--muted);
-  padding-top: 9px;
-  line-height: 1.4;
-}
-.dim-label strong {
-  display: block;
-  color: var(--text);
-  font-size: 12px;
-  margin-bottom: 2px;
-}
-
-select {
-  width: 100%;
-  background: var(--bg);
-  color: var(--text);
-  border: 1px solid var(--border2);
-  border-radius: 4px;
-  padding: 7px 10px;
-  font-family: var(--sans);
-  font-size: 13px;
-  appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237d8590' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 10px center;
-  padding-right: 30px;
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-select:hover { border-color: var(--accent); }
-select:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(88,166,255,0.1); }
-
-/* ── score pill ── */
-.score-row {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 6px 0;
-  font-family: var(--mono); font-size: 12px;
-}
-.score-row .label { color: var(--muted); }
-.score-row .val { color: var(--text); font-weight: 500; }
-
-/* ── result panel ── */
-.result-card { position: sticky; top: 20px; }
-
-.severity-display {
-  text-align: center;
-  padding: 24px 16px;
-  border-bottom: 1px solid var(--border);
-  transition: all 0.3s ease;
-}
-
-.severity-label {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 8px;
-}
-
-.severity-value {
-  font-family: var(--mono);
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  transition: color 0.3s;
-}
-
-.score-arc {
-  margin: 12px auto 0;
-  width: 120px; height: 60px;
-  position: relative;
-  overflow: hidden;
-}
-.score-arc svg { width: 120px; height: 60px; }
-
-.score-number {
-  font-family: var(--mono);
-  font-size: 18px;
-  font-weight: 600;
-  text-align: center;
-  margin-top: 6px;
-  transition: color 0.3s;
-}
-
-/* severity colours */
-.sev-low    .severity-value, .sev-low    .score-number { color: var(--low-text); }
-.sev-mod    .severity-value, .sev-mod    .score-number { color: var(--mod-text); }
-.sev-high   .severity-value, .sev-high   .score-number { color: var(--high-text); }
-.sev-ext    .severity-value, .sev-ext    .score-number { color: var(--ext-text); }
-.sev-none   .severity-value, .sev-none   .score-number { color: var(--muted); }
-
-/* ── weight breakdown ── */
-.breakdown { padding: 16px; border-bottom: 1px solid var(--border); }
-
-.breakdown-title {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--muted);
-  margin-bottom: 10px;
-}
-
-.bar-row { margin-bottom: 8px; }
-.bar-meta {
-  display: flex; justify-content: space-between;
-  font-family: var(--mono); font-size: 11px;
-  color: var(--muted); margin-bottom: 3px;
-}
-.bar-meta .bname { color: var(--text); }
-.bar-track {
-  height: 4px; background: var(--border);
-  border-radius: 2px; overflow: hidden;
-}
-.bar-fill {
-  height: 100%; border-radius: 2px;
-  background: var(--accent2);
-  transition: width 0.4s ease, background 0.3s;
-  width: 0;
-}
-
-/* ── overrides ── */
-.overrides { padding: 16px; border-bottom: 1px solid var(--border); }
-
-.override-item {
-  display: flex; align-items: flex-start; gap: 8px;
-  padding: 5px 0;
-  font-size: 12px;
-}
-.override-dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  flex-shrink: 0; margin-top: 5px;
-  background: var(--border2);
-  transition: background 0.2s;
-}
-.override-item.fired .override-dot { background: var(--ext-text); }
-.override-item.fired .override-text { color: var(--ext-text); }
-.override-text { color: var(--muted); line-height: 1.4; }
-
-/* ── radarfirst compare ── */
-.compare { padding: 16px; }
-.compare label {
-  display: block;
-  font-family: var(--mono);
-  font-size: 10px; letter-spacing: 0.1em;
-  text-transform: uppercase; color: var(--muted);
-  margin-bottom: 8px;
-}
-
-.compare-btns { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 4px; margin-bottom: 10px; }
-
-.sev-btn {
-  padding: 6px 4px;
-  border-radius: 3px;
-  border: 1px solid var(--border2);
-  background: transparent;
-  font-family: var(--mono); font-size: 11px; font-weight: 600;
-  cursor: pointer; text-align: center;
-  transition: all 0.15s;
-  color: var(--muted);
-}
-.sev-btn:hover { border-color: var(--accent); color: var(--text); }
-.sev-btn.selected-LOW    { background: var(--low-bg);  border-color: var(--low-text);  color: var(--low-text); }
-.sev-btn.selected-MODERATE { background: var(--mod-bg); border-color: var(--mod-text); color: var(--mod-text); }
-.sev-btn.selected-HIGH   { background: var(--high-bg); border-color: var(--high-text); color: var(--high-text); }
-.sev-btn.selected-EXTREME { background: var(--ext-bg); border-color: var(--ext-text);  color: var(--ext-text); }
-
-.match-result {
-  font-family: var(--mono); font-size: 12px;
-  padding: 8px 10px; border-radius: 4px;
-  border: 1px solid var(--border);
-  text-align: center; min-height: 34px;
-  display: flex; align-items: center; justify-content: center;
-  transition: all 0.2s;
-}
-.match-result.match   { background: var(--low-bg); border-color: var(--low-text); color: var(--low-text); }
-.match-result.mismatch { background: var(--ext-bg); border-color: var(--ext-text); color: var(--ext-text); }
-
-/* ── test log ── */
-.log-section { margin-top: 24px; }
-
-.log-controls {
-  display: flex; align-items: center; gap: 10px;
-  margin-bottom: 12px; flex-wrap: wrap;
-}
-
-.btn {
-  font-family: var(--mono); font-size: 11px; font-weight: 600;
-  letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 7px 14px; border-radius: 4px;
-  border: 1px solid var(--border2);
-  background: var(--surface); color: var(--text);
-  cursor: pointer; transition: all 0.15s;
-}
-.btn:hover { border-color: var(--accent); color: var(--accent); }
-.btn.primary { background: var(--accent2); border-color: var(--accent2); color: #fff; }
-.btn.primary:hover { background: var(--accent); border-color: var(--accent); }
-.btn.danger { border-color: var(--ext-text); color: var(--ext-text); }
-.btn.danger:hover { background: var(--ext-bg); }
-
-.log-count { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-left: auto; }
-
-.log-table-wrap { overflow-x: auto; }
-
-table {
-  width: 100%; border-collapse: collapse;
-  font-size: 12px;
-}
-thead { background: var(--surface2); }
-th {
-  font-family: var(--mono); font-size: 10px;
-  letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--muted); padding: 8px 10px;
-  text-align: left; border-bottom: 1px solid var(--border);
-  white-space: nowrap;
-}
-td {
-  padding: 8px 10px; border-bottom: 1px solid var(--border);
-  vertical-align: top; max-width: 180px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-tr:hover td { background: var(--surface2); }
-
-.tag {
-  display: inline-block;
-  font-family: var(--mono); font-size: 10px; font-weight: 600;
-  padding: 2px 6px; border-radius: 3px;
-  white-space: nowrap;
-}
-.tag-LOW      { background: var(--low-bg);  color: var(--low-text);  border: 1px solid var(--low); }
-.tag-MODERATE { background: var(--mod-bg);  color: var(--mod-text);  border: 1px solid var(--mod); }
-.tag-HIGH     { background: var(--high-bg); color: var(--high-text); border: 1px solid var(--high); }
-.tag-EXTREME  { background: var(--ext-bg);  color: var(--ext-text);  border: 1px solid var(--ext); }
-.tag-MATCH    { background: var(--low-bg);  color: var(--low-text);  border: 1px solid var(--low); }
-.tag-MISMATCH { background: var(--ext-bg);  color: var(--ext-text);  border: 1px solid var(--ext); }
-.tag-PENDING  { background: var(--surface2); color: var(--muted);    border: 1px solid var(--border); }
-
-.empty-log {
-  text-align: center; padding: 32px;
-  font-family: var(--mono); font-size: 12px; color: var(--muted);
-  border: 1px dashed var(--border); border-radius: 6px;
-}
-
-footer {
-  margin-top: 40px; padding-top: 20px;
-  border-top: 1px solid var(--border);
-  font-family: var(--mono); font-size: 11px; color: var(--muted);
-  text-align: center;
-}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14px;line-height:1.6;min-height:100vh}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);pointer-events:none;z-index:0}
+.wrap{max-width:900px;margin:0 auto;padding:32px 24px;position:relative;z-index:1}
+header{border-bottom:1px solid var(--border);padding-bottom:24px;margin-bottom:32px}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:0.12em;text-transform:uppercase;color:var(--accent);border:1px solid var(--accent2);padding:3px 8px;border-radius:3px;margin-bottom:12px}
+.badge-fix{color:#3fb950;border-color:#1a7f37;margin-left:8px}
+h1{font-family:var(--mono);font-size:22px;font-weight:600;letter-spacing:-0.02em;color:var(--text);margin-bottom:6px}
+.subtitle{color:var(--muted);font-size:13px}
+.grid{display:grid;grid-template-columns:1fr 280px;gap:20px;align-items:start}
+@media(max-width:700px){.grid{grid-template-columns:1fr}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.card-header{background:var(--surface2);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;gap:8px}
+.card-header .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex-shrink:0}
+.card-header span{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)}
+.card-body{padding:16px}
+.dim-row{display:grid;grid-template-columns:180px 1fr;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--border)}
+.dim-row:last-child{border-bottom:none}
+.dim-label{font-family:var(--mono);font-size:11px;color:var(--muted);padding-top:9px;line-height:1.4}
+.dim-label strong{display:block;color:var(--text);font-size:12px;margin-bottom:2px}
+select{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--border2);border-radius:4px;padding:7px 10px;font-family:var(--sans);font-size:13px;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237d8590' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:30px;cursor:pointer;transition:border-color 0.15s}
+select:hover{border-color:var(--accent)}
+select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(88,166,255,0.1)}
+.result-card{position:sticky;top:20px}
+.severity-display{text-align:center;padding:24px 16px;border-bottom:1px solid var(--border);transition:all 0.3s ease}
+.severity-label{font-family:var(--mono);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.severity-value{font-family:var(--mono);font-size:32px;font-weight:600;letter-spacing:-0.02em;transition:color 0.3s}
+.score-arc{margin:12px auto 0;width:120px;height:60px;position:relative;overflow:hidden}
+.score-arc svg{width:120px;height:60px}
+.score-number{font-family:var(--mono);font-size:18px;font-weight:600;text-align:center;margin-top:6px;transition:color 0.3s}
+.sev-low .severity-value,.sev-low .score-number{color:var(--low-text)}
+.sev-mod .severity-value,.sev-mod .score-number{color:var(--mod-text)}
+.sev-high .severity-value,.sev-high .score-number{color:var(--high-text)}
+.sev-ext .severity-value,.sev-ext .score-number{color:var(--ext-text)}
+.sev-none .severity-value,.sev-none .score-number{color:var(--muted)}
+.breakdown{padding:16px;border-bottom:1px solid var(--border)}
+.breakdown-title{font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.overrides{padding:16px;border-bottom:1px solid var(--border)}
+.compare{padding:16px}
+.compare label{display:block;font-family:var(--mono);font-size:10px;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+.compare-btns{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:4px;margin-bottom:10px}
+.sev-btn{padding:6px 4px;border-radius:3px;border:1px solid var(--border2);background:transparent;font-family:var(--mono);font-size:11px;font-weight:600;cursor:pointer;text-align:center;transition:all 0.15s;color:var(--muted)}
+.sev-btn:hover{border-color:var(--accent);color:var(--text)}
+.sev-btn.selected-LOW{background:var(--low-bg);border-color:var(--low-text);color:var(--low-text)}
+.sev-btn.selected-MODERATE{background:var(--mod-bg);border-color:var(--mod-text);color:var(--mod-text)}
+.sev-btn.selected-HIGH{background:var(--high-bg);border-color:var(--high-text);color:var(--high-text)}
+.sev-btn.selected-EXTREME{background:var(--ext-bg);border-color:var(--ext-text);color:var(--ext-text)}
+.match-result{font-family:var(--mono);font-size:12px;padding:8px 10px;border-radius:4px;border:1px solid var(--border);text-align:center;min-height:34px;display:flex;align-items:center;justify-content:center;transition:all 0.2s}
+.match-result.match{background:var(--low-bg);border-color:var(--low-text);color:var(--low-text)}
+.match-result.mismatch{background:var(--ext-bg);border-color:var(--ext-text);color:var(--ext-text)}
+.log-section{margin-top:24px}
+.log-controls{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.btn{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;padding:7px 14px;border-radius:4px;border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer;transition:all 0.15s}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.primary{background:var(--accent2);border-color:var(--accent2);color:#fff}
+.btn.primary:hover{background:var(--accent);border-color:var(--accent)}
+.btn.danger{border-color:var(--ext-text);color:var(--ext-text)}
+.btn.danger:hover{background:var(--ext-bg)}
+.btn.success{border-color:var(--low-text);color:var(--low-text)}
+.btn.success:hover{background:var(--low-bg)}
+.log-count{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:auto}
+.log-table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:12px}
+thead{background:var(--surface2)}
+th{font-family:var(--mono);font-size:10px;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);padding:8px 10px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:top;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+tr:hover td{background:var(--surface2)}
+.tag{display:inline-block;font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;white-space:nowrap}
+.tag-LOW{background:var(--low-bg);color:var(--low-text);border:1px solid var(--low)}
+.tag-MODERATE{background:var(--mod-bg);color:var(--mod-text);border:1px solid var(--mod)}
+.tag-HIGH{background:var(--high-bg);color:var(--high-text);border:1px solid var(--high)}
+.tag-EXTREME{background:var(--ext-bg);color:var(--ext-text);border:1px solid var(--ext)}
+.tag-MATCH{background:var(--low-bg);color:var(--low-text);border:1px solid var(--low)}
+.tag-MISMATCH{background:var(--ext-bg);color:var(--ext-text);border:1px solid var(--ext)}
+.tag-PENDING{background:var(--surface2);color:var(--muted);border:1px solid var(--border)}
+.empty-log{text-align:center;padding:32px;font-family:var(--mono);font-size:12px;color:var(--muted);border:1px dashed var(--border);border-radius:6px}
+.regression-section{margin-top:24px}
+.regression-header{background:var(--surface2);border:1px solid var(--border);border-radius:6px 6px 0 0;padding:10px 16px;display:flex;align-items:center;gap:8px}
+.regression-body{background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 6px 6px;padding:16px}
+.score-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin:8px 0 12px}
+.score-bar-fill{height:100%;border-radius:4px;transition:width 0.6s ease;background:var(--low-text)}
+.score-bar-fill.partial{background:var(--mod-text)}
+.score-bar-fill.fail{background:var(--ext-text)}
+.fix-banner{background:#0d2818;border:1px solid #1a7f37;border-radius:6px;padding:12px 16px;margin-bottom:24px;font-size:12px;line-height:1.6}
+.fix-banner h3{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.1em;text-transform:uppercase;color:var(--low-text);margin-bottom:8px}
+.fix-item{display:flex;gap:10px;padding:4px 0;color:var(--muted)}
+.fix-item::before{content:'→';color:var(--low-text);flex-shrink:0;font-family:var(--mono)}
+footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--border);font-family:var(--mono);font-size:11px;color:var(--muted);text-align:center}
 </style>
 </head>
 <body>
 <div class="wrap">
 
-  <header>
+<header>
+  <div>
     <div class="badge">Breach Risk Assessment</div>
-    <h1>Risk Scoring Calculator</h1>
-    <p class="subtitle">Select values across all 7 dimensions → compare output against RadarFirst → log discrepancies</p>
-  </header>
+    <div class="badge badge-fix">v10 — 4 fixes applied</div>
+  </div>
+  <h1>Risk Scoring Calculator</h1>
+  <p class="subtitle">Select values across all 7 dimensions → compare output against RadarFirst → log discrepancies</p>
+</header>
 
-  <div class="grid">
+<div class="fix-banner">
+  <h3>Changes from v9 → v10 (5 new Radar cases resolved)</h3>
+  <div class="fix-item"><strong style="color:var(--text)">Fix 3 — no_written_obtained/provided + authorized + legally obligated → LOW:</strong>&nbsp;Previously these mitigations always fired Gate 1b → MODERATE for readable data. But F1/F2 show that when the recipient is an authorized legally-obligated entity (federal agency, covered entity, etc.), "no written assurance" is LOW — the legal obligation substitutes for the written form. Note: <code>obligated_no_assurance</code> does NOT get this treatment (Q6 confirmed it stays MODERATE).</div>
+  <div class="fix-item" style="margin-top:5px"><strong style="color:var(--text)">Fix 4 — Gate 1a exception broadened from ransomware-only → any malicious intent:</strong>&nbsp;T2 previously established: ransomware + hacker + readable + CONFIRMED_SAFE → MODERATE. F5 shows hacking (not ransomware) + hacker + readable + malicious also → MODERATE. The trigger is malicious intent toward a dangerous recipient, not the specific compromise type. Condition changed from <code>compromise === 'ransomware'</code> to <code>nature &gt;= 0.80</code>.</div>
+  <div class="fix-item" style="margin-top:5px"><strong style="color:var(--text)">Fix 5 — Gate 1b hacker/media escalation sub-rule (new):</strong>&nbsp;F3/F4 reveal that when readable data reaches a hacker or media recipient via an ASSURED_SAFE mitigation, the result is not the flat MODERATE that applies to everyone else. It escalates: not-malicious → HIGH (F3), malicious → EXTREME (F4). The intuition: an assurance-level mitigation is meaningless for a recipient who by definition has no obligation to honor it.</div>
+</div>
 
-    <!-- LEFT: inputs -->
-    <div>
-      <div class="card">
-        <div class="card-header"><div class="dot"></div><span>Dimension Inputs</span></div>
-        <div class="card-body">
-
-          <div class="dim-row">
-            <div class="dim-label"><strong>1. Protection Measure</strong>gate 2 trigger</div>
-            <select id="d_protection" onchange="calc()">
-              <option value="">— select —</option>
-              <option value="0.10">Statistically de-identified</option>
-              <option value="0.20">Redacted</option>
-              <option value="0.30">Limited data set</option>
-              <option value="0.25">Under physical safeguard</option>
-              <option value="0.85">In plain text</option>
-            </select>
-          </div>
-
-          <div class="dim-row">
-            <div class="dim-label"><strong>2. Incident Nature</strong>filters compromise list</div>
-            <select id="d_nature" onchange="onNatureChange()">
-              <option value="">— select —</option>
-              <option value="0.85">Intentional, malicious</option>
-              <option value="0.45">Intentional, not malicious</option>
-              <option value="0.30">Unintentional or inadvertent</option>
-            </select>
-          </div>
-
-          <div class="dim-row">
-            <div class="dim-label"><strong>3. Compromise Description</strong>filtered by nature</div>
-            <select id="d_compromise" onchange="calc()">
-              <option value="">— select nature first —</option>
-            </select>
-          </div>
-
-          <div class="dim-row">
-            <div class="dim-label"><strong>4. Recipient</strong>filters description list</div>
-            <select id="d_recipient" onchange="onRecipientChange()">
-              <option value="">— select —</option>
-              <option value="authorized">Generally authorized person or organization</option>
-              <option value="unauthorized">Unauthorized person, organization, or unknown</option>
-            </select>
-          </div>
-
-          <div class="dim-row">
-            <div class="dim-label"><strong>5. Recipient Description</strong>filtered by recipient</div>
-            <select id="d_rec_desc" onchange="calc()">
-              <option value="">— select recipient first —</option>
-            </select>
-          </div>
-
-          <div class="dim-row">
-            <div class="dim-label"><strong>6. Disposition</strong>gate 3 trigger</div>
-            <select id="d_disposition" onchange="onDispositionChange()">
-              <option value="">— select —</option>
-              <option value="0.15">Sufficient risk mitigation</option>
-              <option value="0.75">Insufficient or unknown risk mitigation</option>
-            </select>
-          </div>
-
-          <div class="dim-row">
-            <div class="dim-label"><strong>7. Mitigation Name</strong>filtered by disposition</div>
-            <select id="d_mitigation" onchange="calc()">
-              <option value="">— select disposition first —</option>
-            </select>
-          </div>
-
-        </div><!-- card-body -->
-      </div><!-- card -->
-    </div><!-- left col -->
-
-    <!-- RIGHT: result panel -->
-    <div>
-      <div class="card result-card" id="result-card">
-
-        <div class="severity-display" id="sev-display">
-          <div class="severity-label">Risk Severity</div>
-          <div class="severity-value" id="sev-value">—</div>
-          <div class="score-arc">
-            <svg viewBox="0 0 120 60">
-              <path d="M10,55 A50,50 0 0,1 110,55" fill="none" stroke="#30363d" stroke-width="6" stroke-linecap="round"/>
-              <path id="arc-fill" d="M10,55 A50,50 0 0,1 110,55" fill="none" stroke="#30363d" stroke-width="6" stroke-linecap="round"
-                stroke-dasharray="157" stroke-dashoffset="157" style="transition:stroke-dashoffset 0.5s ease,stroke 0.3s"/>
-            </svg>
-          </div>
-          <div class="score-number" id="score-number">—</div>
-        </div>
-
-        <div class="breakdown" id="breakdown">
-          <div class="breakdown-title">Decision tree</div>
-          <div id="bars"></div>
-        </div>
-
-        <div class="overrides">
-          <div class="breakdown-title">State summary</div>
-          <div id="override-list"></div>
-        </div>
-
-        <div class="compare">
-          <label>RadarFirst output</label>
-          <div class="compare-btns">
-            <button class="sev-btn" data-sev="LOW"      onclick="setRadar('LOW')">LOW</button>
-            <button class="sev-btn" data-sev="MODERATE" onclick="setRadar('MODERATE')">MOD</button>
-            <button class="sev-btn" data-sev="HIGH"     onclick="setRadar('HIGH')">HIGH</button>
-            <button class="sev-btn" data-sev="EXTREME"  onclick="setRadar('EXTREME')">EXT</button>
-          </div>
-          <div class="match-result" id="match-result">select RadarFirst output above</div>
-        </div>
-
-      </div>
-    </div>
-
-  </div><!-- grid -->
-
-  <!-- Test Log -->
-  <div class="log-section">
+<div class="grid">
+  <div>
     <div class="card">
-      <div class="card-header"><div class="dot"></div><span>Test Case Log</span></div>
-      <div class="card-body" style="padding:12px">
-        <div class="log-controls">
-          <button class="btn primary" onclick="logCase()">+ Log Current Case</button>
-          <button class="btn" onclick="exportCSV()">Export CSV</button>
-          <button class="btn danger" onclick="clearLog()">Clear All</button>
-          <span class="log-count" id="log-count">0 cases logged</span>
+      <div class="card-header"><div class="dot"></div><span>Dimension Inputs</span></div>
+      <div class="card-body">
+        <div class="dim-row">
+          <div class="dim-label"><strong>1. Protection Measure</strong>gate 2 trigger</div>
+          <select id="d_protection" onchange="calc()">
+            <option value="">— select —</option>
+            <option value="0.10">Statistically de-identified</option>
+            <option value="0.20">Redacted</option>
+            <option value="0.30">Limited data set</option>
+            <option value="0.25">Under physical safeguard</option>
+            <option value="0.85">In plain text</option>
+          </select>
         </div>
-        <div id="log-container">
-          <div class="empty-log" id="empty-msg">No test cases logged yet. Select inputs above and click "Log Current Case".</div>
-          <div class="log-table-wrap" id="log-table-wrap" style="display:none">
-            <table>
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Protection</th>
-                  <th>Incident</th>
-                  <th>Compromise</th>
-                  <th>Recipient Desc</th>
-                  <th>Disposition</th>
-                  <th>Mitigation</th>
-                  <th>Gate fired</th>
-                  <th>Our Result</th>
-                  <th>RadarFirst</th>
-                  <th>Match</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody id="log-body"></tbody>
-            </table>
-          </div>
+        <div class="dim-row">
+          <div class="dim-label"><strong>2. Incident Nature</strong>filters compromise list</div>
+          <select id="d_nature" onchange="onNatureChange()">
+            <option value="">— select —</option>
+            <option value="0.85">Intentional, malicious</option>
+            <option value="0.45">Intentional, not malicious</option>
+            <option value="0.30">Unintentional or inadvertent</option>
+          </select>
+        </div>
+        <div class="dim-row">
+          <div class="dim-label"><strong>3. Compromise Description</strong>filtered by nature</div>
+          <select id="d_compromise" onchange="calc()"><option value="">— select nature first —</option></select>
+        </div>
+        <div class="dim-row">
+          <div class="dim-label"><strong>4. Recipient</strong>filters description list</div>
+          <select id="d_recipient" onchange="onRecipientChange()">
+            <option value="">— select —</option>
+            <option value="authorized">Generally authorized person or organization</option>
+            <option value="unauthorized">Unauthorized person, organization, or unknown</option>
+          </select>
+        </div>
+        <div class="dim-row">
+          <div class="dim-label"><strong>5. Recipient Description</strong>filtered by recipient</div>
+          <select id="d_rec_desc" onchange="calc()"><option value="">— select recipient first —</option></select>
+        </div>
+        <div class="dim-row">
+          <div class="dim-label"><strong>6. Disposition</strong>gate 3 trigger</div>
+          <select id="d_disposition" onchange="onDispositionChange()">
+            <option value="">— select —</option>
+            <option value="0.15">Sufficient risk mitigation</option>
+            <option value="0.75">Insufficient or unknown risk mitigation</option>
+          </select>
+        </div>
+        <div class="dim-row">
+          <div class="dim-label"><strong>7. Mitigation Name</strong>filtered by disposition</div>
+          <select id="d_mitigation" onchange="calc()"><option value="">— select disposition first —</option></select>
         </div>
       </div>
     </div>
   </div>
 
-  <footer>Breach Risk Assessment Calculator · Gawde &amp; Gawde Computer Services · Built to replace RadarFirst</footer>
+  <div>
+    <div class="card result-card" id="result-card">
+      <div class="severity-display" id="sev-display">
+        <div class="severity-label">Risk Severity</div>
+        <div class="severity-value" id="sev-value">—</div>
+        <div class="score-arc">
+          <svg viewBox="0 0 120 60">
+            <path d="M10,55 A50,50 0 0,1 110,55" fill="none" stroke="#30363d" stroke-width="6" stroke-linecap="round"/>
+            <path id="arc-fill" d="M10,55 A50,50 0 0,1 110,55" fill="none" stroke="#30363d" stroke-width="6" stroke-linecap="round"
+              stroke-dasharray="157" stroke-dashoffset="157" style="transition:stroke-dashoffset 0.5s ease,stroke 0.3s"/>
+          </svg>
+        </div>
+        <div class="score-number" id="score-number">—</div>
+      </div>
+      <div class="breakdown" id="breakdown">
+        <div class="breakdown-title">Decision tree</div>
+        <div id="bars"></div>
+      </div>
+      <div class="overrides">
+        <div class="breakdown-title">State summary</div>
+        <div id="override-list"></div>
+      </div>
+      <div class="compare">
+        <label>RadarFirst output</label>
+        <div class="compare-btns">
+          <button class="sev-btn" data-sev="LOW"      onclick="setRadar('LOW')">LOW</button>
+          <button class="sev-btn" data-sev="MODERATE" onclick="setRadar('MODERATE')">MOD</button>
+          <button class="sev-btn" data-sev="HIGH"     onclick="setRadar('HIGH')">HIGH</button>
+          <button class="sev-btn" data-sev="EXTREME"  onclick="setRadar('EXTREME')">EXT</button>
+        </div>
+        <div class="match-result" id="match-result">select RadarFirst output above</div>
+      </div>
+    </div>
+  </div>
+</div>
 
-</div><!-- wrap -->
+<div class="regression-section">
+  <div class="regression-header">
+    <div style="width:7px;height:7px;border-radius:50%;background:var(--low-text);flex-shrink:0"></div>
+    <span style="font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted)">Regression Test Suite</span>
+    <span style="margin-left:auto;font-family:var(--mono);font-size:11px;color:var(--muted)" id="reg-badge">48 cases · not run</span>
+  </div>
+  <div class="regression-body">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn success" onclick="runRegression()">▶ Run All 48 Cases</button>
+      <button class="btn" onclick="toggleRegDetails()" id="toggle-details-btn" style="display:none">Show details</button>
+      <span id="reg-summary" style="font-family:var(--mono);font-size:12px;color:var(--muted)">43 original + 5 new verified cases.</span>
+    </div>
+    <div class="score-bar"><div class="score-bar-fill" id="reg-bar" style="width:0%"></div></div>
+    <div id="reg-details" style="display:none"></div>
+  </div>
+</div>
+
+<div class="log-section">
+  <div class="card">
+    <div class="card-header"><div class="dot"></div><span>Manual Test Case Log</span></div>
+    <div class="card-body" style="padding:12px">
+      <div class="log-controls">
+        <button class="btn primary" onclick="logCase()">+ Log Current Case</button>
+        <button class="btn" onclick="exportCSV()">Export CSV</button>
+        <button class="btn danger" onclick="clearLog()">Clear All</button>
+        <span class="log-count" id="log-count">0 cases logged</span>
+      </div>
+      <div id="log-container">
+        <div class="empty-log" id="empty-msg">No test cases logged yet.</div>
+        <div class="log-table-wrap" id="log-table-wrap" style="display:none">
+          <table>
+            <thead><tr><th>#</th><th>Protection</th><th>Incident</th><th>Compromise</th><th>Recipient Desc</th><th>Disposition</th><th>Mitigation</th><th>Gate</th><th>Ours</th><th>RadarFirst</th><th>Match</th><th></th></tr></thead>
+            <tbody id="log-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Breach Risk Assessment Calculator · Gawde &amp; Gawde Computer Services · v10 · Built to replace RadarFirst</footer>
+</div>
 
 <script>
 const COMPROMISE_BY_NATURE = {
-  '0.85': [
-    {val:'ransomware',    label:'Ransomware'},
-    {val:'hacking',       label:'Hacking or malware other than ransomware'},
-    {val:'theft',         label:'Theft'},
-    {val:'unauth_access', label:'Unauthorized access'},
-    {val:'unauth_use',    label:'Unauthorized use'},
-    {val:'disclosure',    label:'Disclosure'},
-    {val:'unknown',       label:'Unknown'},
-  ],
-  '0.45': [
-    {val:'disclosure',        label:'Disclosure'},
-    {val:'improper_disposal', label:'Improper disposal'},
-    {val:'it_incident',       label:'IT incident'},
-    {val:'unauth_access',     label:'Unauthorized access'},
-    {val:'unauth_use',        label:'Unauthorized use'},
-  ],
-  '0.30': [
-    {val:'disclosure',        label:'Disclosure'},
-    {val:'good_faith',        label:'Good faith acquisition, access, or use'},
-    {val:'improper_disposal', label:'Improper disposal'},
-    {val:'it_incident',       label:'IT incident'},
-    {val:'loss',              label:'Loss'},
-    {val:'unauth_access',     label:'Unauthorized access'},
-    {val:'unauth_use',        label:'Unauthorized use'},
-  ],
+  '0.85':[{val:'ransomware',label:'Ransomware'},{val:'hacking',label:'Hacking or malware other than ransomware'},{val:'theft',label:'Theft'},{val:'unauth_access',label:'Unauthorized access'},{val:'unauth_use',label:'Unauthorized use'},{val:'disclosure',label:'Disclosure'},{val:'unknown',label:'Unknown'}],
+  '0.45':[{val:'disclosure',label:'Disclosure'},{val:'improper_disposal',label:'Improper disposal'},{val:'it_incident',label:'IT incident'},{val:'unauth_access',label:'Unauthorized access'},{val:'unauth_use',label:'Unauthorized use'}],
+  '0.30':[{val:'disclosure',label:'Disclosure'},{val:'good_faith',label:'Good faith acquisition, access, or use'},{val:'improper_disposal',label:'Improper disposal'},{val:'it_incident',label:'IT incident'},{val:'loss',label:'Loss'},{val:'unauth_access',label:'Unauthorized access'},{val:'unauth_use',label:'Unauthorized use'}],
 };
-
 const REC_DESC_BY_RECIPIENT = {
-  'authorized': [
-    {val:'covered_entity',         label:'Covered entity'},
-    {val:'business_associate',     label:'Business associate'},
-    {val:'service_provider',       label:'Service provider'},
-    {val:'institutional_client',   label:'Institutional client'},
-    {val:'reg_investment_advisor', label:'Registered investment advisor'},
-    {val:'federal_agency',         label:'Federal agency obligated to Privacy Act of 1974 and FISMA'},
-    {val:'ohca',                   label:'Organized health care arrangement (OHCA)'},
-    {val:'self_insured_sponsor',   label:'Self-insured plan sponsor'},
-    {val:'employee',               label:'Employee, workforce member, or agent of the entity'},
-  ],
-  'unauthorized': [
-    {val:'covered_entity',         label:'Covered entity'},
-    {val:'ba_state_gov',           label:'Business associate or state government agency'},
-    {val:'business_associate',     label:'Business associate'},
-    {val:'service_provider',       label:'Service provider'},
-    {val:'institutional_client',   label:'Institutional client'},
-    {val:'state_gov',              label:'State government agency'},
-    {val:'federal_agency',         label:'Federal Agency obligated to Privacy Act of 1974 and FISMA'},
-    {val:'ohca',                   label:'Organized health care arrangement (OHCA)'},
-    {val:'self_insured_sponsor',   label:'Self-insured plan sponsor'},
-    {val:'fully_insured_sponsor',  label:'Fully-insured plan sponsor'},
-    {val:'vendor',                 label:'Vendor'},
-    {val:'parent_guardian',        label:'Parent or guardian'},
-    {val:'relative',               label:'Relative or household member of patient, insured member, or customer'},
-    {val:'another_family',         label:"Another patient's family member or guardian"},
-    {val:'non_custodial',          label:'Non-custodial parent'},
-    {val:'employee',               label:'Employee, workforce member, or agent of the entity'},
-    {val:'customer',               label:'Customer'},
-    {val:'financial_pro',          label:'Financial professional'},
-    {val:'patient',                label:'Patient, insured member, or customer'},
-    {val:'partner',                label:'Partner or significant other not in the household'},
-    {val:'general_public',         label:'Member of general public'},
-    {val:'reg_investment_advisor', label:'Registered investment advisor'},
-    {val:'attorney',               label:'Attorney or law firm'},
-    {val:'hacker',                 label:'Hacker or thief'},
-    {val:'media',                  label:'Media'},
-    {val:'unknown',                label:'Unknown'},
-  ],
+  'authorized':[{val:'covered_entity',label:'Covered entity'},{val:'business_associate',label:'Business associate'},{val:'service_provider',label:'Service provider'},{val:'institutional_client',label:'Institutional client'},{val:'reg_investment_advisor',label:'Registered investment advisor'},{val:'federal_agency',label:'Federal agency obligated to Privacy Act of 1974 and FISMA'},{val:'ohca',label:'Organized health care arrangement (OHCA)'},{val:'self_insured_sponsor',label:'Self-insured plan sponsor'},{val:'employee',label:'Employee, workforce member, or agent of the entity'}],
+  'unauthorized':[{val:'covered_entity',label:'Covered entity'},{val:'ba_state_gov',label:'Business associate or state government agency'},{val:'business_associate',label:'Business associate'},{val:'service_provider',label:'Service provider'},{val:'institutional_client',label:'Institutional client'},{val:'state_gov',label:'State government agency'},{val:'federal_agency',label:'Federal Agency obligated to Privacy Act of 1974 and FISMA'},{val:'ohca',label:'Organized health care arrangement (OHCA)'},{val:'self_insured_sponsor',label:'Self-insured plan sponsor'},{val:'fully_insured_sponsor',label:'Fully-insured plan sponsor'},{val:'vendor',label:'Vendor'},{val:'parent_guardian',label:'Parent or guardian'},{val:'relative',label:'Relative or household member of patient, insured member, or customer'},{val:'another_family',label:"Another patient's family member or guardian"},{val:'non_custodial',label:'Non-custodial parent'},{val:'employee',label:'Employee, workforce member, or agent of the entity'},{val:'customer',label:'Customer'},{val:'financial_pro',label:'Financial professional'},{val:'patient',label:'Patient, insured member, or customer'},{val:'partner',label:'Partner or significant other not in the household'},{val:'general_public',label:'Member of general public'},{val:'reg_investment_advisor',label:'Registered investment advisor'},{val:'attorney',label:'Attorney or law firm'},{val:'hacker',label:'Hacker or thief'},{val:'media',label:'Media'},{val:'unknown',label:'Unknown'}],
 };
-
 const MITIGATION_BY_DISPOSITION = {
-  '0.15': [
-    {val:'unopened',               label:'Recipient had the opportunity, but did not view, access, transfer, or use the data (unopened returned mail)'},
-    {val:'forensic',               label:'Forensic analysis concluded that regulated data was not compromised (not viewed, accessed, transferred, or used)'},
-    {val:'backup',                 label:'Recovered or restored from backup without high risk to data integrity or availability'},
-    {val:'no_retain',              label:'Recipient could not reasonably retain the data'},
-    {val:'permitted',              label:'Recipient confirmed receipt and use of data as permitted'},
-    {val:'written_obtained',       label:'Written assurance was obtained (confidentiality agreement, attestation), and data will not be further used or disclosed'},
-    {val:'written_provided',       label:'Written assurance was provided (confidentiality agreement, attestation), and data will not be further used or disclosed'},
-    {val:'satisfactory',           label:'Satisfactory assurance was obtained from a recipient that is obligated to protect personal data by law and/or contract'},
-    {val:'obligated_no_assurance', label:'Since recipient is obligated to protect personal data by law and/or contract, no assurance was obtained'},
-    {val:'ce_ba_obligated',        label:'No written assurance was obtained since recipient (CE or BA) is obligated to safeguard regulated data'},
-    {val:'no_written_obtained',    label:'No written assurance was obtained'},
-    {val:'no_written_provided',    label:'No written assurance was provided'},
-    {val:'company_policy',         label:'Appropriate actions to sufficiently mitigate risk were taken in accordance with company policy'},
-  ],
-  '0.75': [
-    {val:'unsure_backup',        label:'Destroyed properly but unsure of backup or copy status'},
-    {val:'confirmed_viewing',    label:'Confirmed viewing or acquisition without evidence of any improper use by recipient'},
-    {val:'unable_retrieve',      label:'Unable to retrieve or unsure of disposition'},
-    {val:'ransomware_confirmed', label:'Confirmed ransomware acquisition with high risk to data integrity or availability'},
-    {val:'improper_use',         label:'Confirmed improper use or further exposure'},
-    {val:'sent_to_media',        label:'Data has been sent to media or published'},
-    {val:'ssn_exposed',          label:'High risk data, namely SSN, or other personal information exposed'},
-    {val:'unknown_mit',          label:'Unknown'},
-  ],
+  '0.15':[{val:'unopened',label:'Recipient had the opportunity, but did not view, access, transfer, or use the data (unopened returned mail)'},{val:'forensic',label:'Forensic analysis concluded that regulated data was not compromised (not viewed, accessed, transferred, or used)'},{val:'backup',label:'Recovered or restored from backup without high risk to data integrity or availability'},{val:'no_retain',label:'Recipient could not reasonably retain the data'},{val:'permitted',label:'Recipient confirmed receipt and use of data as permitted'},{val:'written_obtained',label:'Written assurance was obtained (confidentiality agreement, attestation), and data will not be further used or disclosed'},{val:'written_provided',label:'Written assurance was provided (confidentiality agreement, attestation), and data will not be further used or disclosed'},{val:'satisfactory',label:'Satisfactory assurance was obtained from a recipient that is obligated to protect personal data by law and/or contract'},{val:'obligated_no_assurance',label:'Since recipient is obligated to protect personal data by law and/or contract, no assurance was obtained'},{val:'ce_ba_obligated',label:'No written assurance was obtained since recipient (CE or BA) is obligated to safeguard regulated data'},{val:'no_written_obtained',label:'No written assurance was obtained'},{val:'no_written_provided',label:'No written assurance was provided'},{val:'company_policy',label:'Appropriate actions to sufficiently mitigate risk were taken in accordance with company policy'}],
+  '0.75':[{val:'unsure_backup',label:'Destroyed properly but unsure of backup or copy status'},{val:'confirmed_viewing',label:'Confirmed viewing or acquisition without evidence of any improper use by recipient'},{val:'unable_retrieve',label:'Unable to retrieve or unsure of disposition'},{val:'ransomware_confirmed',label:'Confirmed ransomware acquisition with high risk to data integrity or availability'},{val:'improper_use',label:'Confirmed improper use or further exposure'},{val:'sent_to_media',label:'Data has been sent to media or published'},{val:'ssn_exposed',label:'High risk data, namely SSN, or other personal information exposed'},{val:'unknown_mit',label:'Unknown'}],
 };
 
-function populateSelect(id, items, placeholder) {
-  const el = document.getElementById(id);
-  el.innerHTML = `<option value="">— ${placeholder} —</option>`;
-  items.forEach(item => {
-    const opt = document.createElement('option');
-    opt.value = item.val; opt.textContent = item.label;
-    el.appendChild(opt);
-  });
-}
-function onNatureChange() {
-  const nat = document.getElementById('d_nature').value;
-  const items = COMPROMISE_BY_NATURE[nat] || [];
-  populateSelect('d_compromise', items, items.length ? 'select compromise' : 'select nature first');
-  calc();
-}
-function onRecipientChange() {
-  const recip = document.getElementById('d_recipient').value;
-  const items = REC_DESC_BY_RECIPIENT[recip] || [];
-  populateSelect('d_rec_desc', items, items.length ? 'select description' : 'select recipient first');
-  calc();
-}
-function onDispositionChange() {
-  const disp = document.getElementById('d_disposition').value;
-  const items = MITIGATION_BY_DISPOSITION[disp] || [];
-  populateSelect('d_mitigation', items, items.length ? 'select mitigation' : 'select disposition first');
-  calc();
-}
+function populateSelect(id,items,placeholder){const el=document.getElementById(id);el.innerHTML=`<option value="">— ${placeholder} —</option>`;items.forEach(i=>{const o=document.createElement('option');o.value=i.val;o.textContent=i.label;el.appendChild(o)})}
+function onNatureChange(){const n=document.getElementById('d_nature').value;const i=COMPROMISE_BY_NATURE[n]||[];populateSelect('d_compromise',i,i.length?'select compromise':'select nature first');calc()}
+function onRecipientChange(){const r=document.getElementById('d_recipient').value;const i=REC_DESC_BY_RECIPIENT[r]||[];populateSelect('d_rec_desc',i,i.length?'select description':'select recipient first');calc()}
+function onDispositionChange(){const d=document.getElementById('d_disposition').value;const i=MITIGATION_BY_DISPOSITION[d]||[];populateSelect('d_mitigation',i,i.length?'select mitigation':'select disposition first');calc()}
 
-// ── Decision Tree v6 (34/34 verified) ────────────────────────────────────────
-const LEGALLY_OBLIGATED = new Set([
-  'covered_entity','business_associate','ba_state_gov','federal_agency',
-  'ohca','self_insured_sponsor','fully_insured_sponsor','reg_investment_advisor',
-  'state_gov','employee',
-]);
-const CONFIRMED_SAFE = new Set(['unopened','forensic','backup','no_retain']);
-const ASSURED_SAFE   = new Set([
-  'permitted','written_obtained','written_provided','satisfactory',
-  'obligated_no_assurance','ce_ba_obligated','no_written_obtained',
-  'no_written_provided','company_policy',
-]);
-const GATE2_BAD_MIT  = new Set([
-  'unable_retrieve','improper_use','sent_to_media','unknown_mit','ssn_exposed','ransomware_confirmed',
-]);
-// Gate 3 authorized+insufficient — three severity tiers by mitigation
-const G3_EXTREME  = new Set(['improper_use','unknown_mit','sent_to_media','ssn_exposed']);
-const G3_HIGH     = new Set(['unable_retrieve']);
-const G3_MODERATE = new Set(['confirmed_viewing','ransomware_confirmed','unsure_backup']);
+// ── Decision Tree v10 ─────────────────────────────────────────────────────────
+// v9 fixes: recip_type guard on Gate 1a satisfactory; Gate 1b dead ransomware code removed
+// v10 fixes:
+//   Fix 3: no_written_obtained/provided + authorized + legally_obligated → LOW (Gate 1a)
+//   Fix 4: Gate 1a exception broadened: any nature>=0.80 + hacker/media + readable → MODERATE
+//   Fix 5: Gate 1b hacker/media escalation: not-malicious → HIGH; malicious → EXTREME
 
-const TREE_STEPS = [
-  {
-    id:'gate1a_confirmed_safe',
-    label:'Gate 1a — Mitigation confirms data not accessed',
-    desc:'Unopened, forensic, backup, no_retain — or satisfactory assurance from a legally obligated recipient',
-    eval: s => {
-      let result = null;
-      if (CONFIRMED_SAFE.has(s.mit_key)) result = 'LOW';
-      else if (s.mit_key === 'satisfactory' && LEGALLY_OBLIGATED.has(s.rec_desc_key)) result = 'LOW';
-      if (result === 'LOW' &&
-          s.compromise === 'ransomware' &&
-          s.protection > 0.10 &&
-          (s.rec_desc_key === 'hacker' || s.rec_desc_key === 'media')) {
-        return 'MODERATE';
-      }
-      return result;
-    },
-  },
-  {
-    id:'gate1b_assured_safe',
-    label:'Gate 1b — Mitigation = assurance given',
-    desc:'Written assurance / permitted use / policy — de-identified data → LOW; readable data → MODERATE; ransomware + hacker/media → MODERATE',
-    eval: s => {
-      if (!ASSURED_SAFE.has(s.mit_key)) return null;
-      let result = (s.protection !== null && s.protection <= 0.10) ? 'LOW' : 'MODERATE';
-      if (result === 'LOW' &&
-          s.compromise === 'ransomware' &&
-          s.protection > 0.10 &&
-          (s.rec_desc_key === 'hacker' || s.rec_desc_key === 'media')) {
-        result = 'MODERATE';
-      }
-      return result;
-    },
-  },
-  {
-    id:'gate2_de_id',
-    label:'Gate 2 — Protection = de-identified',
-    desc:'De-identified data — severity depends on recipient, intent, and mitigation outcome',
-    eval: s => {
-      if (s.protection === null || s.protection > 0.10) return null;
-      const highRisk = s.rec_desc_key === 'media' || s.rec_desc_key === 'hacker';
-      if (highRisk && s.nature >= 0.80) {
-        if (s.mit_key === 'ransomware_confirmed') return 'HIGH';
-        if (GATE2_BAD_MIT.has(s.mit_key)) return 'MODERATE';
-        return 'LOW';
-      }
-      if (!highRisk && s.mit_key === 'ransomware_confirmed') return 'MODERATE';
-      return 'LOW';
-    },
-  },
-  {
-    id:'gate3_readable_insuf',
-    label:'Gate 3 — Readable data + insufficient disposition',
-    desc:'Data is readable AND disposition insufficient — severity depends on recipient type and mitigation outcome',
-    eval: s => {
-      if (s.protection === null || s.protection <= 0.10) return null;
-      if (s.disposition === null || s.disposition < 0.70) return null;
-      if (s.recip_type === 'unauthorized') return 'EXTREME';
-      // Authorized + insufficient: mitigation outcome determines severity
-      if (G3_EXTREME.has(s.mit_key))  return 'EXTREME';
-      if (G3_HIGH.has(s.mit_key))     return 'HIGH';
-      if (G3_MODERATE.has(s.mit_key)) return 'MODERATE';
-      return 'HIGH'; // default for any unmapped mitigation
-    },
-  },
-  {
-    id:'gate4_sufficient',
-    label:'Gate 4 — Readable data + sufficient disposition (fallthrough)',
-    desc:'Data is readable but situation was controlled — residual moderate risk',
-    eval: s => {
-      if (s.protection === null || s.protection <= 0.10) return null;
-      if (s.disposition === null || s.disposition >= 0.70) return null;
-      return 'MODERATE';
-    },
-  },
+const LEGALLY_OBLIGATED=new Set(['covered_entity','business_associate','ba_state_gov','federal_agency','ohca','self_insured_sponsor','fully_insured_sponsor','reg_investment_advisor','state_gov','employee']);
+const CONFIRMED_SAFE=new Set(['unopened','forensic','backup','no_retain']);
+const ASSURED_SAFE=new Set(['permitted','written_obtained','written_provided','satisfactory','obligated_no_assurance','ce_ba_obligated','no_written_obtained','no_written_provided','company_policy']);
+const GATE2_BAD_MIT=new Set(['unable_retrieve','improper_use','sent_to_media','unknown_mit','ssn_exposed','ransomware_confirmed']);
+const G3_EXTREME=new Set(['improper_use','unknown_mit','sent_to_media','ssn_exposed']);
+const G3_HIGH=new Set(['unable_retrieve']);
+const G3_MODERATE=new Set(['confirmed_viewing','ransomware_confirmed','unsure_backup']);
+// Fix 3: these mits + authorized + legally_obligated → LOW (no written needed, legal obligation sufficient)
+// NOTE: obligated_no_assurance and ce_ba_obligated are NOT in this set — Q6 confirms they stay MODERATE
+const NO_WRITTEN_MITS=new Set(['no_written_obtained','no_written_provided']);
+
+const TREE_STEPS=[
+  {id:'gate1a_confirmed_safe',
+   label:'Gate 1a — Mitigation confirms data not accessed',
+   desc:'Confirmed safe mits, satisfactory+obligated+authorized, or no-written+obligated+authorized → LOW; broadened exception: any malicious + hacker/media + readable → MODERATE',
+   eval:s=>{
+     let r=null;
+     if(CONFIRMED_SAFE.has(s.mit_key)) r='LOW';
+     else if(s.mit_key==='satisfactory'&&s.recip_type==='authorized'&&LEGALLY_OBLIGATED.has(s.rec_desc_key)) r='LOW';
+     // Fix 3
+     else if(NO_WRITTEN_MITS.has(s.mit_key)&&s.recip_type==='authorized'&&LEGALLY_OBLIGATED.has(s.rec_desc_key)) r='LOW';
+     if(r==='LOW'){
+       // Fix 4: broadened from ransomware-only to any malicious nature
+       if(s.nature!==null&&s.nature>=0.80&&s.protection!==null&&s.protection>0.10&&(s.rec_desc_key==='hacker'||s.rec_desc_key==='media')) return 'MODERATE';
+       return 'LOW';
+     }
+     return null;
+   }},
+  {id:'gate1b_assured_safe',
+   label:'Gate 1b — Mitigation = assurance given',
+   desc:'ASSURED_SAFE mits → LOW if de-id; hacker/media+readable: malicious→EXTREME, not-malicious→HIGH; all others readable→MODERATE',
+   eval:s=>{
+     if(!ASSURED_SAFE.has(s.mit_key)) return null;
+     if(s.protection!==null&&s.protection<=0.10) return 'LOW';
+     // Fix 5: hacker/media + readable escalation
+     if(s.protection!==null&&s.protection>0.10&&(s.rec_desc_key==='hacker'||s.rec_desc_key==='media')){
+       if(s.nature!==null&&s.nature>=0.80) return 'EXTREME';
+       return 'HIGH';
+     }
+     return 'MODERATE';
+   }},
+  {id:'gate2_de_id',
+   label:'Gate 2 — Protection = de-identified',
+   desc:'De-identified data — LOW default; hacker/media+malicious sub-rules raise to MODERATE or HIGH',
+   eval:s=>{
+     if(s.protection===null||s.protection>0.10) return null;
+     const hr=s.rec_desc_key==='media'||s.rec_desc_key==='hacker';
+     if(hr&&s.nature>=0.80){
+       if(s.mit_key==='ransomware_confirmed') return 'HIGH';
+       if(GATE2_BAD_MIT.has(s.mit_key)) return 'MODERATE';
+       return 'LOW';
+     }
+     if(!hr&&s.mit_key==='ransomware_confirmed') return 'MODERATE';
+     return 'LOW';
+   }},
+  {id:'gate3_readable_insuf',
+   label:'Gate 3 — Readable data + insufficient disposition',
+   desc:'Readable+insufficient → EXTREME if unauthorized; authorized: EXTREME/HIGH/MODERATE by mitigation tier',
+   eval:s=>{
+     if(s.protection===null||s.protection<=0.10) return null;
+     if(s.disposition===null||s.disposition<0.70) return null;
+     if(s.recip_type==='unauthorized') return 'EXTREME';
+     if(G3_EXTREME.has(s.mit_key)) return 'EXTREME';
+     if(G3_HIGH.has(s.mit_key)) return 'HIGH';
+     if(G3_MODERATE.has(s.mit_key)) return 'MODERATE';
+     return 'HIGH';
+   }},
+  {id:'gate4_sufficient',
+   label:'Gate 4 — Readable data + sufficient disposition (fallthrough)',
+   desc:'Safety net — has never fired in practice',
+   eval:s=>{
+     if(s.protection===null||s.protection<=0.10) return null;
+     if(s.disposition===null||s.disposition>=0.70) return null;
+     return 'MODERATE';
+   }},
 ];
 
-let currentResult = null, radarResult = null;
-let testLog = JSON.parse(localStorage.getItem('riskLog') || '[]');
+function assessState(s){
+  for(const step of TREE_STEPS){const r=step.eval(s);if(r!==null) return{finalSev:r,firedGate:step.id}}
+  return{finalSev:null,firedGate:null};
+}
 
-function sevClass(sev) { return {LOW:'sev-low',MODERATE:'sev-mod',HIGH:'sev-high',EXTREME:'sev-ext'}[sev]||'sev-none'; }
-function sevBarColor(sev) { return {LOW:'#1a7f37',MODERATE:'#9a6700',HIGH:'#bc4c00',EXTREME:'#8b2020'}[sev]||'#1f6feb'; }
+let currentResult=null,radarResult=null;
+let testLog=JSON.parse(localStorage.getItem('riskLog_v10')||'[]');
 
-function calc() {
-  const prot    = parseFloat(document.getElementById('d_protection').value)  || null;
-  const nat     = parseFloat(document.getElementById('d_nature').value)      || null;
-  const comp    = document.getElementById('d_compromise').value              || null;
-  const recip   = document.getElementById('d_recipient').value               || null;
-  const recDesc = document.getElementById('d_rec_desc').value                || null;
-  const disp    = parseFloat(document.getElementById('d_disposition').value) || null;
-  const mit     = document.getElementById('d_mitigation').value              || null;
+function sevClass(s){return{LOW:'sev-low',MODERATE:'sev-mod',HIGH:'sev-high',EXTREME:'sev-ext'}[s]||'sev-none'}
+function sevColor(s){return{LOW:'#1a7f37',MODERATE:'#9a6700',HIGH:'#bc4c00',EXTREME:'#8b2020'}[s]||'#1f6feb'}
 
-  const state = { protection:prot, nature:nat, compromise:comp, recip_type:recip,
-                  rec_desc_key:recDesc, disposition:disp, mit_key:mit };
-
-  let finalSev = null, firedGate = null;
-  for (const step of TREE_STEPS) {
-    const res = step.eval(state);
-    if (res !== null) { finalSev = res; firedGate = step.id; break; }
-  }
-  currentResult = { state, finalSev, firedGate, selectionLabels: getSelectionLabels() };
+function calc(){
+  const prot=parseFloat(document.getElementById('d_protection').value)||null;
+  const nat=parseFloat(document.getElementById('d_nature').value)||null;
+  const comp=document.getElementById('d_compromise').value||null;
+  const recip=document.getElementById('d_recipient').value||null;
+  const recDesc=document.getElementById('d_rec_desc').value||null;
+  const disp=parseFloat(document.getElementById('d_disposition').value)||null;
+  const mit=document.getElementById('d_mitigation').value||null;
+  const state={protection:prot,nature:nat,compromise:comp,recip_type:recip,rec_desc_key:recDesc,disposition:disp,mit_key:mit};
+  const{finalSev,firedGate}=assessState(state);
+  currentResult={state,finalSev,firedGate,selectionLabels:getSelectionLabels()};
   renderResult(currentResult);
   updateMatch();
 }
 
-function getSelectionLabels() {
-  const getText = id => { const el = document.getElementById(id); return el.options[el.selectedIndex]?.text || '—'; };
-  return { protection:getText('d_protection'), nature:getText('d_nature'), compromise:getText('d_compromise'),
-           recipient:getText('d_recipient'), rec_desc:getText('d_rec_desc'), disposition:getText('d_disposition'),
-           mitigation:getText('d_mitigation') };
+function getSelectionLabels(){
+  const g=id=>{const e=document.getElementById(id);return e.options[e.selectedIndex]?.text||'—'};
+  return{protection:g('d_protection'),nature:g('d_nature'),compromise:g('d_compromise'),recipient:g('d_recipient'),rec_desc:g('d_rec_desc'),disposition:g('d_disposition'),mitigation:g('d_mitigation')};
 }
 
-function renderResult(r) {
-  const card = document.getElementById('result-card');
-  const sevDisp = document.getElementById('sev-display');
-  const sevVal = document.getElementById('sev-value');
-  const scoreNum = document.getElementById('score-number');
-  ['sev-low','sev-mod','sev-high','sev-ext','sev-none'].forEach(c => { card.classList.remove(c); sevDisp.classList.remove(c); });
-
-  if (!r.finalSev) {
-    sevVal.textContent = '—'; scoreNum.textContent = 'incomplete';
-    card.classList.add('sev-none'); sevDisp.classList.add('sev-none');
-    document.getElementById('arc-fill').style.strokeDashoffset = '157';
-    document.getElementById('arc-fill').style.stroke = '#30363d';
+function renderResult(r){
+  const card=document.getElementById('result-card');
+  const sd=document.getElementById('sev-display');
+  const sv=document.getElementById('sev-value');
+  const sn=document.getElementById('score-number');
+  ['sev-low','sev-mod','sev-high','sev-ext','sev-none'].forEach(c=>{card.classList.remove(c);sd.classList.remove(c)});
+  if(!r.finalSev){
+    sv.textContent='—';sn.textContent='incomplete';
+    card.classList.add('sev-none');sd.classList.add('sev-none');
+    document.getElementById('arc-fill').style.strokeDashoffset='157';
+    document.getElementById('arc-fill').style.stroke='#30363d';
   } else {
-    sevVal.textContent = r.finalSev;
-    scoreNum.textContent = r.firedGate.replace('gate','Gate ').replace(/_/g,' ');
-    card.classList.add(sevClass(r.finalSev)); sevDisp.classList.add(sevClass(r.finalSev));
-    const sevScores = {LOW:0.2,MODERATE:0.5,HIGH:0.75,EXTREME:1.0};
-    const arcEl = document.getElementById('arc-fill');
-    arcEl.style.strokeDashoffset = 157 - (sevScores[r.finalSev] * 157);
-    arcEl.style.stroke = sevBarColor(r.finalSev);
+    sv.textContent=r.finalSev;
+    sn.textContent=r.firedGate.replace('gate','Gate ').replace(/_/g,' ');
+    card.classList.add(sevClass(r.finalSev));sd.classList.add(sevClass(r.finalSev));
+    const sc={LOW:0.2,MODERATE:0.5,HIGH:0.75,EXTREME:1.0};
+    const arc=document.getElementById('arc-fill');
+    arc.style.strokeDashoffset=157-(sc[r.finalSev]*157);
+    arc.style.stroke=sevColor(r.finalSev);
   }
-
-  const barsEl = document.getElementById('bars');
-  barsEl.innerHTML = '';
-  for (const step of TREE_STEPS) {
-    const isFired = step.id === r.firedGate;
-    const firedIdx = TREE_STEPS.findIndex(s => s.id === r.firedGate);
-    const stepIdx = TREE_STEPS.findIndex(s => s.id === step.id);
-    const isSkipped = firedIdx >= 0 && stepIdx > firedIdx;
-    const dotColor = isFired ? sevBarColor(r.finalSev) : (isSkipped ? 'var(--border)' : 'var(--border2)');
-    const lblColor = isFired ? 'var(--text)' : (isSkipped ? 'var(--border2)' : 'var(--muted)');
-    const badge = isFired
-      ? `<span style="margin-left:8px;font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;background:${sevBarColor(r.finalSev)}22;color:${sevBarColor(r.finalSev)};border:1px solid ${sevBarColor(r.finalSev)}44">→ ${r.finalSev}</span>`
-      : '';
-    barsEl.innerHTML += `<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);align-items:flex-start">
-      <div style="width:7px;height:7px;border-radius:50%;background:${dotColor};flex-shrink:0;margin-top:5px"></div>
-      <div><div style="font-family:var(--mono);font-size:11px;color:${lblColor};font-weight:${isFired?'600':'400'}">${step.label}${badge}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">${step.desc}</div></div></div>`;
+  const bars=document.getElementById('bars');
+  bars.innerHTML='';
+  for(const step of TREE_STEPS){
+    const isFired=step.id===r.firedGate;
+    const fi=TREE_STEPS.findIndex(s=>s.id===r.firedGate);
+    const si=TREE_STEPS.findIndex(s=>s.id===step.id);
+    const isSkipped=fi>=0&&si>fi;
+    const dc=isFired?sevColor(r.finalSev):(isSkipped?'var(--border)':'var(--border2)');
+    const lc=isFired?'var(--text)':(isSkipped?'var(--border2)':'var(--muted)');
+    const badge=isFired?`<span style="margin-left:8px;font-family:var(--mono);font-size:10px;font-weight:600;padding:2px 6px;border-radius:3px;background:${sevColor(r.finalSev)}22;color:${sevColor(r.finalSev)};border:1px solid ${sevColor(r.finalSev)}44">→ ${r.finalSev}</span>`:'';
+    bars.innerHTML+=`<div style="display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);align-items:flex-start"><div style="width:7px;height:7px;border-radius:50%;background:${dc};flex-shrink:0;margin-top:5px"></div><div><div style="font-family:var(--mono);font-size:11px;color:${lc};font-weight:${isFired?'600':'400'}">${step.label}${badge}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">${step.desc}</div></div></div>`;
   }
-
-  const ovEl = document.getElementById('override-list');
-  ovEl.innerHTML = '';
-  const s = r.state;
-  const isDeId = s.protection !== null && s.protection <= 0.10;
-  const isObl = s.rec_desc_key && LEGALLY_OBLIGATED.has(s.rec_desc_key);
-  const mitClass = s.mit_key
-    ? (CONFIRMED_SAFE.has(s.mit_key) ? 'Confirmed safe ✓'
-      : (s.mit_key === 'satisfactory' && isObl ? 'Satisfactory (obligated) ✓'
-      : (ASSURED_SAFE.has(s.mit_key) ? (isDeId ? 'Assured (de-id → LOW)' : 'Assured safe → MODERATE')
-      : (G3_EXTREME.has(s.mit_key) ? 'Extreme trigger ⚠'
-      : (GATE2_BAD_MIT.has(s.mit_key) ? 'Bad outcome' : 'Standard')))))
-    : '—';
+  const ov=document.getElementById('override-list');
+  ov.innerHTML='';
+  const s=r.state;
+  const isDeId=s.protection!==null&&s.protection<=0.10;
+  const isObl=s.rec_desc_key&&LEGALLY_OBLIGATED.has(s.rec_desc_key);
+  const isAuthObl=isObl&&s.recip_type==='authorized';
+  const isHackerMedia=s.rec_desc_key==='hacker'||s.rec_desc_key==='media';
+  const mitClass=s.mit_key
+    ?(CONFIRMED_SAFE.has(s.mit_key)?'Confirmed safe ✓'
+    :(s.mit_key==='satisfactory'&&isAuthObl?'Satisfactory (auth+obligated) ✓'
+    :(NO_WRITTEN_MITS.has(s.mit_key)&&isAuthObl?'No-written (auth+obligated) → LOW ✓'
+    :(ASSURED_SAFE.has(s.mit_key)&&isHackerMedia&&s.protection>0.10?(s.nature>=0.80?'Assured + hacker/media + malicious → EXTREME':'Assured + hacker/media → HIGH')
+    :(ASSURED_SAFE.has(s.mit_key)?(isDeId?'Assured (de-id → LOW)':'Assured → MODERATE')
+    :(G3_EXTREME.has(s.mit_key)?'Extreme trigger ⚠'
+    :(GATE2_BAD_MIT.has(s.mit_key)?'Bad outcome':'Standard')))))))
+    :'—';
   [
-    {label:'Protection',      val: s.protection !== null ? (isDeId ? 'De-identified ✓' : 'Readable') : '—', hi: isDeId},
-    {label:'Recipient type',  val: s.recip_type ? (s.recip_type==='authorized'?'Authorized':'Unauthorized') : '—', hi: s.recip_type==='authorized'},
-    {label:'Legally obligated',val: s.rec_desc_key ? (isObl ? 'Yes ✓' : 'No') : '—', hi: isObl},
-    {label:'Disposition',     val: s.disposition !== null ? (s.disposition<0.70?'Sufficient ✓':'Insufficient') : '—', hi: s.disposition!==null && s.disposition<0.70},
-    {label:'Mitigation class', val: mitClass, hi: s.mit_key && (CONFIRMED_SAFE.has(s.mit_key)||(s.mit_key==='satisfactory'&&isObl))},
-  ].forEach(f => {
-    ovEl.innerHTML += `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
-      <span style="color:var(--muted);font-family:var(--mono)">${f.label}</span>
-      <span style="font-family:var(--mono);color:${f.hi?'var(--low-text)':'var(--text)'}">${f.val}</span></div>`;
+    {label:'Protection',val:s.protection!==null?(isDeId?'De-identified ✓':'Readable'):'-',hi:isDeId},
+    {label:'Recipient type',val:s.recip_type?(s.recip_type==='authorized'?'Authorized':'Unauthorized'):'-',hi:s.recip_type==='authorized'},
+    {label:'Legally obligated',val:s.rec_desc_key?(isAuthObl?'Yes ✓ (authorized)':(isObl?'Yes (unauthorized — no Gate 1a benefit)':'No')):'-',hi:isAuthObl},
+    {label:'Disposition',val:s.disposition!==null?(s.disposition<0.70?'Sufficient ✓':'Insufficient'):'-',hi:s.disposition!==null&&s.disposition<0.70},
+    {label:'Mitigation class',val:mitClass,hi:s.mit_key&&(CONFIRMED_SAFE.has(s.mit_key)||(s.mit_key==='satisfactory'&&isAuthObl)||(NO_WRITTEN_MITS.has(s.mit_key)&&isAuthObl))},
+  ].forEach(f=>{
+    ov.innerHTML+=`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px"><span style="color:var(--muted);font-family:var(--mono)">${f.label}</span><span style="font-family:var(--mono);color:${f.hi?'var(--low-text)':'var(--text)'}">${f.val}</span></div>`;
   });
 }
 
-function setRadar(sev) {
-  radarResult = sev;
-  document.querySelectorAll('.sev-btn').forEach(b => { b.className='sev-btn'; if(b.dataset.sev===sev) b.classList.add('selected-'+sev); });
-  updateMatch();
-}
-function updateMatch() {
-  const el = document.getElementById('match-result');
-  if (!radarResult) { el.textContent='select RadarFirst output above'; el.className='match-result'; return; }
-  if (!currentResult?.finalSev) { el.textContent='complete all inputs to compare'; el.className='match-result'; return; }
-  if (currentResult.finalSev === radarResult) { el.textContent='✔  MATCH — '+currentResult.finalSev; el.className='match-result match'; }
-  else { el.textContent='✘  MISMATCH — Ours: '+currentResult.finalSev+'  RF: '+radarResult; el.className='match-result mismatch'; }
+function setRadar(sev){radarResult=sev;document.querySelectorAll('.sev-btn').forEach(b=>{b.className='sev-btn';if(b.dataset.sev===sev)b.classList.add('selected-'+sev)});updateMatch()}
+function updateMatch(){
+  const el=document.getElementById('match-result');
+  if(!radarResult){el.textContent='select RadarFirst output above';el.className='match-result';return}
+  if(!currentResult?.finalSev){el.textContent='complete all inputs to compare';el.className='match-result';return}
+  if(currentResult.finalSev===radarResult){el.textContent='✔  MATCH — '+currentResult.finalSev;el.className='match-result match'}
+  else{el.textContent='✘  MISMATCH — Ours: '+currentResult.finalSev+'  RF: '+radarResult;el.className='match-result mismatch'}
 }
 
-function logCase() {
-  if (!currentResult?.finalSev) { alert('Please complete all dimension inputs first.'); return; }
-  const lbl = currentResult.selectionLabels;
-  testLog.push({ id:Date.now(), protection:lbl.protection, nature:lbl.nature, compromise:lbl.compromise,
-    rec_desc:lbl.rec_desc, disposition:lbl.disposition, mitigation:lbl.mitigation,
-    gate:currentResult.firedGate||'—', ours:currentResult.finalSev, radar:radarResult||'—',
-    match:radarResult?(currentResult.finalSev===radarResult?'MATCH':'MISMATCH'):'PENDING' });
-  localStorage.setItem('riskLog', JSON.stringify(testLog));
-  renderLog();
-}
-function deleteCase(id) { testLog=testLog.filter(e=>e.id!==id); localStorage.setItem('riskLog',JSON.stringify(testLog)); renderLog(); }
-function shorten(str,n) { return str&&str.length>n?str.slice(0,n)+'…':(str||'—'); }
+const REGRESSION_CASES=[{"id": "O1", "batch": "original", "protection": 0.2, "nature": 0.85, "compromise": "disclosure", "recip_type": "authorized", "rec_desc_key": "fully_insured_sponsor", "disposition": 0.15, "mit_key": "unopened", "expected": "LOW", "labels": {"protection": "Redacted", "nature": "Intentional, malicious", "compromise": "Disclosure", "recipient": "authorized", "rec_desc": "Fully-insured plan sponsor", "disposition": "Sufficient risk mitigation", "mitigation": "Recipient had the opportunity, but did not view, access, tra..."}, "notes": "Original batch \u2014 first test against RadarFirst, exposed weighted score as wrong approach"}, {"id": "O2", "batch": "original", "protection": 0.1, "nature": 0.85, "compromise": "ransomware", "recip_type": "authorized", "rec_desc_key": "fully_insured_sponsor", "disposition": 0.75, "mit_key": "ransomware_confirmed", "expected": "MODERATE", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, malicious", "compromise": "Ransomware", "recipient": "authorized", "rec_desc": "Fully-insured plan sponsor", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed ransomware acquisition with high risk to data inte..."}, "notes": "De-id + ransomware_confirmed \u2192 MODERATE. Only de-id case that returns MODERATE via Gate 2."}, {"id": "O3", "batch": "original", "protection": 0.1, "nature": 0.3, "compromise": "disclosure", "recip_type": "authorized", "rec_desc_key": "fully_insured_sponsor", "disposition": 0.75, "mit_key": "unsure_backup", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Unintentional or inadvertent", "compromise": "Disclosure", "recipient": "authorized", "rec_desc": "Fully-insured plan sponsor", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Destroyed properly but unsure of backup or copy status"}, "notes": "De-id + insufficient + unsure_backup \u2192 LOW. Gate 2 default."}, {"id": "P1", "batch": "batch_1", "protection": 0.1, "nature": 0.3, "compromise": "disclosure", "recip_type": "authorized", "rec_desc_key": "fully_insured_sponsor", "disposition": 0.75, "mit_key": "unsure_backup", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Unintentional or inadvertent", "compromise": "Disclosure", "recipient": "authorized", "rec_desc": "Fully-insured plan sponsor", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Destroyed properly but unsure of backup or copy status"}, "notes": "Duplicate of O3 \u2014 confirmed consistency."}, {"id": "P2", "batch": "batch_1", "protection": 0.85, "nature": 0.3, "compromise": "disclosure", "recip_type": "authorized", "rec_desc_key": "fully_insured_sponsor", "disposition": 0.15, "mit_key": "unopened", "expected": "LOW", "labels": {"protection": "In plain text", "nature": "Unintentional or inadvertent", "compromise": "Disclosure", "recipient": "authorized", "rec_desc": "Fully-insured plan sponsor", "disposition": "Sufficient risk mitigation", "mitigation": "Recipient had the opportunity, but did not view, access, tra..."}, "notes": "Plain text + sufficient + unopened \u2192 LOW. Gate 1a overrides all bad inputs."}, {"id": "P3", "batch": "batch_1", "protection": 0.85, "nature": 0.85, "compromise": "disclosure", "recip_type": "authorized", "rec_desc_key": "fully_insured_sponsor", "disposition": 0.15, "mit_key": "unopened", "expected": "LOW", "labels": {"protection": "In plain text", "nature": "Intentional, malicious", "compromise": "Disclosure", "recipient": "authorized", "rec_desc": "Fully-insured plan sponsor", "disposition": "Sufficient risk mitigation", "mitigation": "Recipient had the opportunity, but did not view, access, tra..."}, "notes": "Plain text + malicious + sufficient + unopened \u2192 LOW. Gate 1a beats intent."}, {"id": "P4", "batch": "batch_1", "protection": 0.85, "nature": 0.85, "compromise": "disclosure", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.75, "mit_key": "unknown_mit", "expected": "EXTREME", "labels": {"protection": "In plain text", "nature": "Intentional, malicious", "compromise": "Disclosure", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unknown"}, "notes": "Plain text + authorized + insufficient + unknown_mit \u2192 EXTREME. G3_EXTREME bucket."}, {"id": "P5", "batch": "batch_1", "protection": 0.2, "nature": 0.85, "compromise": "disclosure", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.75, "mit_key": "unknown_mit", "expected": "EXTREME", "labels": {"protection": "Redacted", "nature": "Intentional, malicious", "compromise": "Disclosure", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unknown"}, "notes": "Redacted + authorized + insufficient + unknown_mit \u2192 EXTREME. G3_EXTREME bucket."}, {"id": "P6", "batch": "batch_1", "protection": 0.1, "nature": 0.85, "compromise": "disclosure", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.75, "mit_key": "unknown_mit", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, malicious", "compromise": "Disclosure", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unknown"}, "notes": "De-id + authorized + insufficient + unknown_mit \u2192 LOW. Gate 2 fires before Gate 3."}, {"id": "P7", "batch": "batch_1", "protection": 0.1, "nature": 0.45, "compromise": "it_incident", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.75, "mit_key": "improper_use", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, not malicious", "compromise": "IT incident", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed improper use or further exposure"}, "notes": "De-id + authorized + insufficient + improper_use \u2192 LOW. Gate 2, no high-risk recipient."}, {"id": "N1", "batch": "batch_2", "protection": 0.2, "nature": 0.85, "compromise": "unauth_access", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.75, "mit_key": "improper_use", "expected": "EXTREME", "labels": {"protection": "Redacted", "nature": "Intentional, malicious", "compromise": "Unauthorized access", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed improper use or further exposure"}, "notes": "Redacted + authorized + insufficient + improper_use \u2192 EXTREME. NOTE: originally recorded as HIGH \u2014 corrected to EXTREME in batch 5 reanalysis."}, {"id": "N2", "batch": "batch_2", "protection": 0.1, "nature": 0.85, "compromise": "unauth_access", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.75, "mit_key": "improper_use", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, malicious", "compromise": "Unauthorized access", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed improper use or further exposure"}, "notes": "De-id + authorized + insufficient + improper_use \u2192 LOW. Gate 2 neutralises improper_use."}, {"id": "N3", "batch": "batch_2", "protection": 0.2, "nature": 0.45, "compromise": "it_incident", "recip_type": "unauthorized", "rec_desc_key": "vendor", "disposition": 0.75, "mit_key": "unable_retrieve", "expected": "EXTREME", "labels": {"protection": "Redacted", "nature": "Intentional, not malicious", "compromise": "IT incident", "recipient": "unauthorized", "rec_desc": "Vendor", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unable to retrieve or unsure of disposition"}, "notes": "Redacted + unauthorized (vendor) + insufficient + unable_retrieve \u2192 EXTREME. Any unauthorized + readable + insufficient = EXTREME."}, {"id": "N4", "batch": "batch_2", "protection": 0.2, "nature": 0.3, "compromise": "good_faith", "recip_type": "unauthorized", "rec_desc_key": "vendor", "disposition": 0.15, "mit_key": "unopened", "expected": "LOW", "labels": {"protection": "Redacted", "nature": "Unintentional or inadvertent", "compromise": "Good faith acquisition, access, or use", "recipient": "unauthorized", "rec_desc": "Vendor", "disposition": "Sufficient risk mitigation", "mitigation": "Recipient had the opportunity, but did not view, access, tra..."}, "notes": "Redacted + unauthorized (vendor) + sufficient + unopened \u2192 LOW. Gate 1a fires first."}, {"id": "N5", "batch": "batch_2", "protection": 0.2, "nature": 0.3, "compromise": "good_faith", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.15, "mit_key": "unopened", "expected": "LOW", "labels": {"protection": "Redacted", "nature": "Unintentional or inadvertent", "compromise": "Good faith acquisition, access, or use", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Sufficient risk mitigation", "mitigation": "Recipient had the opportunity, but did not view, access, tra..."}, "notes": "Redacted + authorized + sufficient + unopened \u2192 LOW. Gate 1a."}, {"id": "N6", "batch": "batch_2", "protection": 0.25, "nature": 0.85, "compromise": "theft", "recip_type": "unauthorized", "rec_desc_key": "media", "disposition": 0.75, "mit_key": "unable_retrieve", "expected": "EXTREME", "labels": {"protection": "Under physical safeguard", "nature": "Intentional, malicious", "compromise": "Theft", "recipient": "unauthorized", "rec_desc": "Media", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unable to retrieve or unsure of disposition"}, "notes": "Physical safeguard + unauthorized (media) + insufficient + unable_retrieve \u2192 EXTREME. Unauthorized."}, {"id": "N7", "batch": "batch_2", "protection": 0.1, "nature": 0.85, "compromise": "theft", "recip_type": "unauthorized", "rec_desc_key": "media", "disposition": 0.75, "mit_key": "unable_retrieve", "expected": "MODERATE", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, malicious", "compromise": "Theft", "recipient": "unauthorized", "rec_desc": "Media", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unable to retrieve or unsure of disposition"}, "notes": "De-id + unauthorized (media) + insufficient + unable_retrieve \u2192 MODERATE. Gate 2: media+malicious+bad_mit."}, {"id": "N8", "batch": "batch_2", "protection": 0.1, "nature": 0.45, "compromise": "unauth_use", "recip_type": "unauthorized", "rec_desc_key": "media", "disposition": 0.75, "mit_key": "unable_retrieve", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, not malicious", "compromise": "Unauthorized use", "recipient": "unauthorized", "rec_desc": "Media", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unable to retrieve or unsure of disposition"}, "notes": "De-id + unauthorized (media) + insufficient + unable_retrieve \u2192 LOW. Gate 2: media+NOT malicious."}, {"id": "N9", "batch": "batch_2", "protection": 0.2, "nature": 0.3, "compromise": "unauth_use", "recip_type": "authorized", "rec_desc_key": "institutional_client", "disposition": 0.75, "mit_key": "unable_retrieve", "expected": "HIGH", "labels": {"protection": "Redacted", "nature": "Unintentional or inadvertent", "compromise": "Unauthorized use", "recipient": "authorized", "rec_desc": "Institutional client", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unable to retrieve or unsure of disposition"}, "notes": "Redacted + authorized + insufficient + unable_retrieve \u2192 HIGH. G3_HIGH bucket."}, {"id": "Q1", "batch": "batch_3", "protection": 0.2, "nature": 0.3, "compromise": "unauth_use", "recip_type": "authorized", "rec_desc_key": "institutional_client", "disposition": 0.75, "mit_key": "unable_retrieve", "expected": "HIGH", "labels": {"protection": "Redacted", "nature": "Unintentional or inadvertent", "compromise": "Unauthorized use", "recipient": "authorized", "rec_desc": "Institutional client", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unable to retrieve or unsure of disposition"}, "notes": "Duplicate of N9 with different nature \u2014 confirmed HIGH is consistent for authorized+insufficient+unable_retrieve."}, {"id": "Q2", "batch": "batch_3", "protection": 0.1, "nature": 0.3, "compromise": "unauth_use", "recip_type": "authorized", "rec_desc_key": "institutional_client", "disposition": 0.75, "mit_key": "unable_retrieve", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Unintentional or inadvertent", "compromise": "Unauthorized use", "recipient": "authorized", "rec_desc": "Institutional client", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unable to retrieve or unsure of disposition"}, "notes": "De-id + authorized + insufficient + unable_retrieve \u2192 LOW. Gate 2."}, {"id": "Q3", "batch": "batch_3", "protection": 0.1, "nature": 0.85, "compromise": "theft", "recip_type": "authorized", "rec_desc_key": "institutional_client", "disposition": 0.75, "mit_key": "unable_retrieve", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, malicious", "compromise": "Theft", "recipient": "authorized", "rec_desc": "Institutional client", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unable to retrieve or unsure of disposition"}, "notes": "De-id + authorized + insufficient + unable_retrieve \u2192 LOW. Gate 2 even with malicious nature."}, {"id": "Q4", "batch": "batch_3", "protection": 0.1, "nature": 0.85, "compromise": "theft", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.75, "mit_key": "unknown_mit", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, malicious", "compromise": "Theft", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unknown"}, "notes": "De-id + authorized + insufficient + unknown_mit \u2192 LOW. Gate 2 overrides EXTREME_MIT."}, {"id": "Q5", "batch": "batch_3", "protection": 0.85, "nature": 0.85, "compromise": "theft", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.15, "mit_key": "forensic", "expected": "LOW", "labels": {"protection": "In plain text", "nature": "Intentional, malicious", "compromise": "Theft", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Sufficient risk mitigation", "mitigation": "Forensic analysis concluded that regulated data was not comp..."}, "notes": "Plain text + authorized + sufficient + forensic \u2192 LOW. Gate 1a confirmed safe."}, {"id": "Q6", "batch": "batch_3", "protection": 0.85, "nature": 0.85, "compromise": "theft", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.15, "mit_key": "obligated_no_assurance", "expected": "MODERATE", "labels": {"protection": "In plain text", "nature": "Intentional, malicious", "compromise": "Theft", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Sufficient risk mitigation", "mitigation": "Since recipient is obligated to protect personal data by law..."}, "notes": "Plain text + authorized + sufficient + obligated_no_assurance \u2192 MODERATE. Gate 1b assured safe."}, {"id": "Q7", "batch": "batch_3", "protection": 0.25, "nature": 0.85, "compromise": "hacking", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.15, "mit_key": "permitted", "expected": "MODERATE", "labels": {"protection": "Under physical safeguard", "nature": "Intentional, malicious", "compromise": "Hacking or malware other than ransomware", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Sufficient risk mitigation", "mitigation": "Recipient confirmed receipt and use of data as permitted"}, "notes": "Physical safeguard + authorized + sufficient + permitted \u2192 MODERATE. Gate 1b. Confirmed permitted use still MODERATE (data was seen)."}, {"id": "Q8", "batch": "batch_3", "protection": 0.25, "nature": 0.85, "compromise": "hacking", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.15, "mit_key": "forensic", "expected": "LOW", "labels": {"protection": "Under physical safeguard", "nature": "Intentional, malicious", "compromise": "Hacking or malware other than ransomware", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Sufficient risk mitigation", "mitigation": "Forensic analysis concluded that regulated data was not comp..."}, "notes": "Physical safeguard + authorized + sufficient + forensic \u2192 LOW. Gate 1a."}, {"id": "Q9", "batch": "batch_3", "protection": 0.25, "nature": 0.85, "compromise": "hacking", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.15, "mit_key": "written_obtained", "expected": "MODERATE", "labels": {"protection": "Under physical safeguard", "nature": "Intentional, malicious", "compromise": "Hacking or malware other than ransomware", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Sufficient risk mitigation", "mitigation": "Written assurance was obtained (confidentiality agreement, a..."}, "notes": "Physical safeguard + authorized + sufficient + written_obtained \u2192 MODERATE. Gate 1b."}, {"id": "R1", "batch": "batch_4", "protection": 0.85, "nature": 0.45, "compromise": "unauth_use", "recip_type": "authorized", "rec_desc_key": "business_associate", "disposition": 0.15, "mit_key": "satisfactory", "expected": "LOW", "labels": {"protection": "In plain text", "nature": "Intentional, not malicious", "compromise": "Unauthorized use", "recipient": "authorized", "rec_desc": "Business associate", "disposition": "Sufficient risk mitigation", "mitigation": "Satisfactory assurance was obtained from a recipient that is..."}, "notes": "Plain text + authorized (BA) + sufficient + satisfactory \u2192 LOW. Gate 1a: BA is legally obligated so satisfactory = confirmed safe."}, {"id": "R2", "batch": "batch_4", "protection": 0.85, "nature": 0.3, "compromise": "loss", "recip_type": "unauthorized", "rec_desc_key": "general_public", "disposition": 0.15, "mit_key": "satisfactory", "expected": "MODERATE", "labels": {"protection": "In plain text", "nature": "Unintentional or inadvertent", "compromise": "Loss", "recipient": "unauthorized", "rec_desc": "Member of general public", "disposition": "Sufficient risk mitigation", "mitigation": "Satisfactory assurance was obtained from a recipient that is..."}, "notes": "Plain text + unauthorized (general public) + sufficient + satisfactory \u2192 MODERATE. Gate 1b: general public not legally obligated."}, {"id": "R3", "batch": "batch_4", "protection": 0.1, "nature": 0.85, "compromise": "hacking", "recip_type": "unauthorized", "rec_desc_key": "hacker", "disposition": 0.75, "mit_key": "unable_retrieve", "expected": "MODERATE", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, malicious", "compromise": "Hacking or malware other than ransomware", "recipient": "unauthorized", "rec_desc": "Hacker or thief", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Unable to retrieve or unsure of disposition"}, "notes": "De-id + unauthorized (hacker) + insufficient + unable_retrieve \u2192 MODERATE. Gate 2: hacker+malicious+bad_mit."}, {"id": "R4", "batch": "batch_4", "protection": 0.1, "nature": 0.85, "compromise": "theft", "recip_type": "unauthorized", "rec_desc_key": "media", "disposition": 0.75, "mit_key": "unsure_backup", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, malicious", "compromise": "Theft", "recipient": "unauthorized", "rec_desc": "Media", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Destroyed properly but unsure of backup or copy status"}, "notes": "De-id + unauthorized (media) + insufficient + unsure_backup \u2192 LOW. Gate 2: media+malicious but unsure_backup is NOT in GATE2_BAD_MIT."}, {"id": "R5", "batch": "batch_4", "protection": 0.1, "nature": 0.85, "compromise": "ransomware", "recip_type": "unauthorized", "rec_desc_key": "media", "disposition": 0.75, "mit_key": "ransomware_confirmed", "expected": "HIGH", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, malicious", "compromise": "Ransomware", "recipient": "unauthorized", "rec_desc": "Media", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed ransomware acquisition with high risk to data inte..."}, "notes": "De-id + unauthorized (media) + insufficient + ransomware_confirmed \u2192 HIGH. Gate 2: media+malicious+ransomware_confirmed special sub-rule."}, {"id": "R6", "batch": "batch_4", "protection": 0.1, "nature": 0.85, "compromise": "ransomware", "recip_type": "unauthorized", "rec_desc_key": "hacker", "disposition": 0.15, "mit_key": "written_obtained", "expected": "LOW", "labels": {"protection": "Statistically de-identified", "nature": "Intentional, malicious", "compromise": "Ransomware", "recipient": "unauthorized", "rec_desc": "Hacker or thief", "disposition": "Sufficient risk mitigation", "mitigation": "Written assurance was obtained (confidentiality agreement, a..."}, "notes": "De-id + unauthorized (hacker) + sufficient + written_obtained \u2192 LOW. Gate 1b: de-id + assurance = LOW regardless of hacker recipient."}, {"id": "S1", "batch": "batch_5", "protection": 0.25, "nature": 0.45, "compromise": "it_incident", "recip_type": "authorized", "rec_desc_key": "self_insured_sponsor", "disposition": 0.75, "mit_key": "confirmed_viewing", "expected": "MODERATE", "labels": {"protection": "Under physical safeguard", "nature": "Intentional, not malicious", "compromise": "IT incident", "recipient": "authorized", "rec_desc": "Self-insured plan sponsor", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed viewing or acquisition without evidence of any imp..."}, "notes": "Physical safeguard + authorized (self-insured sponsor) + insufficient + confirmed_viewing \u2192 MODERATE. G3_MODERATE bucket."}, {"id": "S2", "batch": "batch_5", "protection": 0.2, "nature": 0.85, "compromise": "unauth_access", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.75, "mit_key": "improper_use", "expected": "EXTREME", "labels": {"protection": "Redacted", "nature": "Intentional, malicious", "compromise": "Unauthorized access", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed improper use or further exposure"}, "notes": "Redacted + authorized (CE) + insufficient + improper_use \u2192 EXTREME. G3_EXTREME. Confirms N1 correction."}, {"id": "S3", "batch": "batch_5", "protection": 0.2, "nature": 0.85, "compromise": "unauth_access", "recip_type": "authorized", "rec_desc_key": "business_associate", "disposition": 0.75, "mit_key": "improper_use", "expected": "EXTREME", "labels": {"protection": "Redacted", "nature": "Intentional, malicious", "compromise": "Unauthorized access", "recipient": "authorized", "rec_desc": "Business associate", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed improper use or further exposure"}, "notes": "Redacted + authorized (BA) + insufficient + improper_use \u2192 EXTREME. G3_EXTREME. BA same as CE for Gate 3."}, {"id": "S4", "batch": "batch_5", "protection": 0.2, "nature": 0.85, "compromise": "unauth_access", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.75, "mit_key": "confirmed_viewing", "expected": "MODERATE", "labels": {"protection": "Redacted", "nature": "Intentional, malicious", "compromise": "Unauthorized access", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed viewing or acquisition without evidence of any imp..."}, "notes": "Redacted + authorized (CE) + insufficient + confirmed_viewing \u2192 MODERATE. G3_MODERATE bucket."}, {"id": "S5", "batch": "batch_5", "protection": 0.2, "nature": 0.3, "compromise": "good_faith", "recip_type": "authorized", "rec_desc_key": "ohca", "disposition": 0.75, "mit_key": "ransomware_confirmed", "expected": "MODERATE", "labels": {"protection": "Redacted", "nature": "Unintentional or inadvertent", "compromise": "Good faith acquisition, access, or use", "recipient": "authorized", "rec_desc": "Organized health care arrangement (OHCA)", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed ransomware acquisition with high risk to data inte..."}, "notes": "Redacted + authorized (OHCA) + insufficient + ransomware_confirmed \u2192 MODERATE. G3_MODERATE: ransomware_confirmed with authorized = MODERATE not EXTREME."}, {"id": "T1", "batch": "batch_6", "protection": 0.2, "nature": 0.3, "compromise": "unauth_access", "recip_type": "unauthorized", "rec_desc_key": "partner", "disposition": 0.75, "mit_key": "improper_use", "expected": "EXTREME", "labels": {"protection": "Redacted", "nature": "Unintentional or inadvertent", "compromise": "Unauthorized access", "recipient": "unauthorized", "rec_desc": "Partner or significant other not in the household", "disposition": "Insufficient or unknown risk mitigation", "mitigation": "Confirmed improper use or further exposure"}, "notes": "Redacted + unauthorized (partner) + insufficient + improper_use \u2192 EXTREME. Unauthorized always EXTREME."}, {"id": "T2", "batch": "batch_6", "protection": 0.85, "nature": 0.85, "compromise": "ransomware", "recip_type": "unauthorized", "rec_desc_key": "hacker", "disposition": 0.15, "mit_key": "unopened", "expected": "MODERATE", "labels": {"protection": "In plain text", "nature": "Intentional, malicious", "compromise": "Ransomware", "recipient": "unauthorized", "rec_desc": "Hacker or thief", "disposition": "Sufficient risk mitigation", "mitigation": "Recipient had the opportunity, but did not view, access, tra..."}, "notes": "Plain text + unauthorized (hacker) + sufficient + unopened \u2192 MODERATE. KEY: ransomware+hacker+readable exception on Gate 1a. Even unopened = MODERATE when ransomware+hacker."}, {"id": "T3", "batch": "batch_6", "protection": 0.85, "nature": 0.85, "compromise": "unauth_access", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.15, "mit_key": "unopened", "expected": "LOW", "labels": {"protection": "In plain text", "nature": "Intentional, malicious", "compromise": "Unauthorized access", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Sufficient risk mitigation", "mitigation": "Recipient had the opportunity, but did not view, access, tra..."}, "notes": "Plain text + authorized (CE) + sufficient + unopened \u2192 LOW. No ransomware \u2014 Gate 1a returns LOW normally."}, {"id": "T4", "batch": "batch_6", "protection": 0.85, "nature": 0.3, "compromise": "improper_disposal", "recip_type": "authorized", "rec_desc_key": "business_associate", "disposition": 0.15, "mit_key": "backup", "expected": "LOW", "labels": {"protection": "In plain text", "nature": "Unintentional or inadvertent", "compromise": "Improper disposal", "recipient": "authorized", "rec_desc": "Business associate", "disposition": "Sufficient risk mitigation", "mitigation": "Recovered or restored from backup without high risk to data ..."}, "notes": "Plain text + authorized (BA) + sufficient + backup \u2192 LOW. Gate 1a confirmed safe."}, {"id": "F1", "batch": "batch_7", "protection": 0.85, "nature": 0.3, "compromise": "good_faith", "recip_type": "authorized", "rec_desc_key": "federal_agency", "disposition": 0.15, "mit_key": "no_written_obtained", "expected": "LOW", "labels": {"protection": "In plain text", "nature": "Unintentional or inadvertent", "compromise": "Good faith acquisition, access, or use", "recipient": "authorized", "rec_desc": "Federal Agency obligated to Privacy Act of 1974 and FISMA", "disposition": "Sufficient risk mitigation", "mitigation": "No written assurance was obtained"}, "notes": "F1: plain text + authorized (federal_agency) + sufficient + no_written_obtained \u2192 LOW. Legally obligated + no written = LOW."}, {"id": "F2", "batch": "batch_7", "protection": 0.85, "nature": 0.3, "compromise": "good_faith", "recip_type": "authorized", "rec_desc_key": "covered_entity", "disposition": 0.15, "mit_key": "no_written_obtained", "expected": "LOW", "labels": {"protection": "In plain text", "nature": "Unintentional or inadvertent", "compromise": "Good faith acquisition, access, or use", "recipient": "authorized", "rec_desc": "Covered entity", "disposition": "Sufficient risk mitigation", "mitigation": "No written assurance was obtained"}, "notes": "F2: plain text + authorized (CE) + sufficient + no_written_obtained \u2192 LOW. Legally obligated + no written = LOW."}, {"id": "F3", "batch": "batch_7", "protection": 0.85, "nature": 0.3, "compromise": "good_faith", "recip_type": "unauthorized", "rec_desc_key": "hacker", "disposition": 0.15, "mit_key": "no_written_obtained", "expected": "HIGH", "labels": {"protection": "In plain text", "nature": "Unintentional or inadvertent", "compromise": "Good faith acquisition, access, or use", "recipient": "unauthorized", "rec_desc": "Hacker or thief", "disposition": "Sufficient risk mitigation", "mitigation": "No written assurance was obtained"}, "notes": "F3: plain text + unauthorized (hacker) + sufficient + no_written_obtained \u2192 HIGH. Gate 1b hacker/media escalation, not malicious \u2192 HIGH."}, {"id": "F4", "batch": "batch_7", "protection": 0.2, "nature": 0.85, "compromise": "hacking", "recip_type": "unauthorized", "rec_desc_key": "hacker", "disposition": 0.15, "mit_key": "obligated_no_assurance", "expected": "EXTREME", "labels": {"protection": "Redacted", "nature": "Intentional, malicious", "compromise": "Hacking or malware other than ransomware", "recipient": "unauthorized", "rec_desc": "Hacker or thief", "disposition": "Sufficient risk mitigation", "mitigation": "Since recipient is obligated to protect personal data..."}, "notes": "F4: redacted + unauthorized (hacker) + malicious + sufficient + obligated_no_assurance \u2192 EXTREME. Gate 1b hacker/media + malicious = EXTREME."}, {"id": "F5", "batch": "batch_7", "protection": 0.2, "nature": 0.85, "compromise": "hacking", "recip_type": "unauthorized", "rec_desc_key": "hacker", "disposition": 0.15, "mit_key": "unopened", "expected": "MODERATE", "labels": {"protection": "Redacted", "nature": "Intentional, malicious", "compromise": "Hacking or malware other than ransomware", "recipient": "unauthorized", "rec_desc": "Hacker or thief", "disposition": "Sufficient risk mitigation", "mitigation": "Recipient had the opportunity, but did not view..."}, "notes": "F5: redacted + unauthorized (hacker) + malicious + sufficient + unopened \u2192 MODERATE. Gate 1a broadened exception: any malicious+hacker/media+readable \u2192 MODERATE."}]
+;
 
-function renderLog() {
-  const tbody=document.getElementById('log-body'), empty=document.getElementById('empty-msg'), wrap=document.getElementById('log-table-wrap');
+let regDetailsVisible=false,lastRegResults=null;
+function runRegression(){
+  const results=REGRESSION_CASES.map(tc=>{
+    const s={protection:tc.protection,nature:tc.nature,compromise:tc.compromise,recip_type:tc.recip_type,rec_desc_key:tc.rec_desc_key,disposition:tc.disposition,mit_key:tc.mit_key};
+    const{finalSev,firedGate}=assessState(s);
+    return{id:tc.id,batch:tc.batch||'',expected:tc.expected,got:finalSev,gate:firedGate,pass:finalSev===tc.expected,labels:tc.labels,notes:tc.notes};
+  });
+  lastRegResults=results;renderRegressionResults(results);
+}
+function renderRegressionResults(results){
+  const passed=results.filter(r=>r.pass).length,total=results.length,pct=Math.round(passed/total*100);
+  const failed=results.filter(r=>!r.pass);
+  const bar=document.getElementById('reg-bar'),sumEl=document.getElementById('reg-summary'),badge=document.getElementById('reg-badge'),btn=document.getElementById('toggle-details-btn');
+  bar.style.width=pct+'%';
+  bar.className='score-bar-fill'+(pct===100?'':pct>=70?' partial':' fail');
+  if(pct===100){
+    badge.textContent=`${total} cases · ✓ ${passed}/${total}`;badge.style.color='var(--low-text)';
+    sumEl.innerHTML=`<span style="color:var(--low-text);font-weight:600">✔ ${passed}/${total} passed (${pct}%)</span> — all verified cases match.`;
+    btn.style.display='';btn.textContent='Show all '+total+' cases';
+  } else {
+    badge.textContent=`${total} cases · ✘ ${failed.length} failed`;badge.style.color='var(--ext-text)';
+    sumEl.innerHTML=`<span style="color:var(--ext-text);font-weight:600">✘ ${failed.length} failure${failed.length>1?'s':''}</span> — ${passed}/${total} passed (${pct}%).`;
+    btn.style.display='';btn.textContent=`Show ${failed.length} failure${failed.length>1?'s':''}`;
+  }
+  renderRegDetails(results);
+}
+function renderRegDetails(results){
+  const el=document.getElementById('reg-details');
+  const toShow=regDetailsVisible?results:results.filter(r=>!r.pass);
+  if(toShow.length===0&&regDetailsVisible){
+    el.innerHTML=`<div style="font-family:var(--mono);font-size:11px;color:var(--low-text);padding:8px 0">All ${results.length} cases passed ✓</div>
+    <div style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Batch</th><th>Rec Desc</th><th>Mitigation</th><th>Gate</th><th>Expected</th><th>Got</th></tr></thead>
+    <tbody>${results.map(r=>`<tr><td style="font-family:var(--mono);color:var(--muted)">${r.id}</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${r.batch}</td><td title="${r.labels?.rec_desc||''}">${sho(r.labels?.rec_desc,22)}</td><td title="${r.labels?.mitigation||''}">${sho(r.labels?.mitigation,30)}</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${(r.gate||'').replace('gate','').replace(/_/g,' ')}</td><td><span class="tag tag-${r.expected}">${r.expected}</span></td><td><span class="tag tag-${r.got}">${r.got}</span></td></tr>`).join('')}</tbody></table></div>`;
+  } else if(toShow.length>0){
+    el.innerHTML=`<div style="overflow-x:auto"><table><thead><tr><th>ID</th><th>Batch</th><th>Protection</th><th>Rec Type</th><th>Rec Desc</th><th>Mitigation</th><th>Gate</th><th>Expected</th><th>Got</th></tr></thead>
+    <tbody>${toShow.map(r=>`<tr style="${r.pass?'':'background:var(--ext-bg)'}"><td style="font-family:var(--mono);color:${r.pass?'var(--muted)':'var(--ext-text)'}">${r.id}</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${r.batch}</td><td>${sho(r.labels?.protection,16)}</td><td>${r.labels?.recipient||''}</td><td title="${r.labels?.rec_desc||''}">${sho(r.labels?.rec_desc,22)}</td><td title="${r.labels?.mitigation||''}">${sho(r.labels?.mitigation,30)}</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${(r.gate||'').replace('gate','').replace(/_/g,' ')}</td><td><span class="tag tag-${r.expected}">${r.expected}</span></td><td><span class="tag tag-${r.got}">${r.got}</span></td></tr>`).join('')}</tbody></table></div>`;
+  }
+  el.style.display=toShow.length>0||regDetailsVisible?'':'none';
+}
+function toggleRegDetails(){
+  regDetailsVisible=!regDetailsVisible;
+  if(lastRegResults) renderRegDetails(lastRegResults);
+  const failed=(lastRegResults||[]).filter(r=>!r.pass);
+  document.getElementById('toggle-details-btn').textContent=regDetailsVisible?'Hide details':(failed.length===0?'Show all '+((lastRegResults||[]).length)+' cases':'Show '+failed.length+' failure'+(failed.length>1?'s':''));
+}
+
+function logCase(){
+  if(!currentResult?.finalSev){alert('Please complete all dimension inputs first.');return}
+  const l=currentResult.selectionLabels;
+  testLog.push({id:Date.now(),protection:l.protection,nature:l.nature,compromise:l.compromise,rec_desc:l.rec_desc,disposition:l.disposition,mitigation:l.mitigation,gate:currentResult.firedGate||'—',ours:currentResult.finalSev,radar:radarResult||'—',match:radarResult?(currentResult.finalSev===radarResult?'MATCH':'MISMATCH'):'PENDING'});
+  localStorage.setItem('riskLog_v10',JSON.stringify(testLog));renderLog();
+}
+function deleteCase(id){testLog=testLog.filter(e=>e.id!==id);localStorage.setItem('riskLog_v10',JSON.stringify(testLog));renderLog()}
+function sho(s,n){return s&&s.length>n?s.slice(0,n)+'…':(s||'—')}
+
+function renderLog(){
+  const tb=document.getElementById('log-body'),em=document.getElementById('empty-msg'),wr=document.getElementById('log-table-wrap');
   document.getElementById('log-count').textContent=testLog.length+' case'+(testLog.length!==1?'s':'')+' logged';
-  if (testLog.length===0) { empty.style.display='block'; wrap.style.display='none'; return; }
-  empty.style.display='none'; wrap.style.display='block';
-  tbody.innerHTML=testLog.map((e,i)=>`<tr>
-    <td style="color:var(--muted);font-family:var(--mono)">${i+1}</td>
-    <td title="${e.protection}">${shorten(e.protection,22)}</td>
-    <td title="${e.nature}">${shorten(e.nature,18)}</td>
-    <td title="${e.compromise}">${shorten(e.compromise,18)}</td>
-    <td title="${e.rec_desc}">${shorten(e.rec_desc,20)}</td>
-    <td title="${e.disposition}">${shorten(e.disposition,16)}</td>
-    <td title="${e.mitigation}">${shorten(e.mitigation,22)}</td>
-    <td style="font-family:var(--mono);font-size:10px;color:var(--muted)" title="${e.gate}">${shorten(e.gate,14)}</td>
-    <td><span class="tag tag-${e.ours}">${e.ours}</span></td>
-    <td><span class="tag tag-${e.radar}">${e.radar}</span></td>
-    <td><span class="tag tag-${e.match}">${e.match}</span></td>
-    <td><button class="btn danger" style="padding:3px 8px;font-size:10px" onclick="deleteCase(${e.id})">del</button></td>
-    </tr>`).join('');
+  if(!testLog.length){em.style.display='block';wr.style.display='none';return}
+  em.style.display='none';wr.style.display='block';
+  tb.innerHTML=testLog.map((e,i)=>`<tr><td style="color:var(--muted);font-family:var(--mono)">${i+1}</td><td title="${e.protection}">${sho(e.protection,22)}</td><td title="${e.nature}">${sho(e.nature,18)}</td><td title="${e.compromise}">${sho(e.compromise,18)}</td><td title="${e.rec_desc}">${sho(e.rec_desc,20)}</td><td title="${e.disposition}">${sho(e.disposition,16)}</td><td title="${e.mitigation}">${sho(e.mitigation,22)}</td><td style="font-family:var(--mono);font-size:10px;color:var(--muted)">${sho(e.gate,14)}</td><td><span class="tag tag-${e.ours}">${e.ours}</span></td><td><span class="tag tag-${e.radar}">${e.radar}</span></td><td><span class="tag tag-${e.match}">${e.match}</span></td><td><button class="btn danger" style="padding:3px 8px;font-size:10px" onclick="deleteCase(${e.id})">del</button></td></tr>`).join('');
+}
+function clearLog(){if(!confirm('Clear all '+testLog.length+' test cases?'))return;testLog=[];localStorage.setItem('riskLog_v10',JSON.stringify(testLog));renderLog()}
+function exportCSV(){
+  if(!testLog.length){alert('No cases to export.');return}
+  const h=['#','Protection','Incident Nature','Compromise','Recipient Description','Disposition','Mitigation','Gate Fired','Our Result','RadarFirst','Match'];
+  const r=testLog.map((e,i)=>[i+1,`"${e.protection}"`,`"${e.nature}"`,`"${e.compromise}"`,`"${e.rec_desc}"`,`"${e.disposition}"`,`"${e.mitigation}"`,`"${e.gate||''}"`,e.ours,e.radar,e.match]);
+  const csv=[h,...r].map(x=>x.join(',')).join('\n');
+  const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
+  a.download='risk_test_log_v10_'+new Date().toISOString().slice(0,10)+'.csv';a.click();
 }
 
-function clearLog() { if(!confirm('Clear all '+testLog.length+' test cases?')) return; testLog=[]; localStorage.setItem('riskLog',JSON.stringify(testLog)); renderLog(); }
-function exportCSV() {
-  if (!testLog.length) { alert('No cases to export.'); return; }
-  const headers=['#','Protection','Incident Nature','Compromise','Recipient Description','Disposition','Mitigation','Gate Fired','Our Result','RadarFirst','Match'];
-  const rows=testLog.map((e,i)=>[i+1,`"${e.protection}"`,`"${e.nature}"`,`"${e.compromise}"`,`"${e.rec_desc}"`,`"${e.disposition}"`,`"${e.mitigation}"`,`"${e.gate||''}"`,e.ours,e.radar,e.match]);
-  const csv=[headers,...rows].map(r=>r.join(',')).join('\n');
-  const a=document.createElement('a'); a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='risk_test_log_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
-}
-
-renderLog(); calc();
+renderLog();calc();
+runRegression();
+regDetailsVisible=true;
+renderRegDetails(lastRegResults);
 </script>
 </body>
 </html>
