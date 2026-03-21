@@ -3,8 +3,8 @@
 **Project:** In-house replacement for Radar  
 **Owner:** Gawde & Gawde Computer Services  
 **File:** `index.html` — single-file, zero dependencies, deployable on GitHub Pages  
-**Tree version:** v10  
-**Verified test cases:** 48/48
+**Tree version:** v12  
+**Verified test cases:** 54/54
 
 ---
 
@@ -12,7 +12,7 @@
 
 This calculator replicates the risk severity output of the Radar breach assessment tool. It takes 7 inputs about a data breach incident and returns a severity level of **LOW**, **MODERATE**, **HIGH**, or **EXTREME**.
 
-The logic was reverse-engineered entirely from empirical testing — running known inputs through Radar, recording the outputs, and iterating until every case matched. The model is a **priority-ordered decision tree**, not a weighted score. It went through 10 iterations (v1–v10) across 7 test batches to reach 48/48 accuracy.
+The logic was reverse-engineered entirely from empirical testing — running known inputs through Radar, recording the outputs, and iterating until every case matched. The model is a **priority-ordered decision tree**, not a weighted score. It went through 12 iterations (v1–v12) across 9 test batches to reach 54/54 accuracy.
 
 ---
 
@@ -22,7 +22,7 @@ The logic was reverse-engineered entirely from empirical testing — running kno
 |---|---|---|
 | 1 | Protection Measure | Gate 2 trigger — de-identified (score 0.10) changes the entire risk profile |
 | 2 | Incident Nature | Filters Compromise dropdown; malicious intent (≥0.80) used in Gates 1a, 1b, and 2 |
-| 3 | Compromise Description | No longer used as a direct gate trigger (ransomware-specific exception replaced by nature-based rule in v10) |
+| 3 | Compromise Description | No longer a direct gate trigger — ransomware-specific exception replaced by nature-based rule in v10 |
 | 4 | Recipient | Filters Recipient Description dropdown; determines authorized vs unauthorized |
 | 5 | Recipient Description | Gate 1a legally-obligated check; Gate 1b hacker/media escalation; Gate 2 hacker/media check; Gate 3 EXTREME vs HIGH |
 | 6 | Disposition | Gate 3 and Gate 4 trigger — sufficient vs insufficient |
@@ -50,16 +50,16 @@ Gate 1a → Gate 1b → Gate 2 → Gate 3 → Gate 4
 
 **Normal result: LOW**
 
-**Exception — malicious intent + hacker/media + readable data → MODERATE**  
-When `nature ≥ 0.80` AND `recipient = hacker or media` AND `protection > 0.10`, Gate 1a returns MODERATE instead of LOW. This was originally documented as ransomware-specific (v8), but batch 7 (F5) confirmed it applies to any malicious compromise type — hacking, theft, and others. The underlying reason is the same: a malicious actor targeting a dangerous recipient cannot be contained by a "data not opened" assurance. This exception does not apply when protection is de-identified (0.10) because unreadable data neutralises the risk regardless.
+**Exception — malicious intent + unauthorized recipient + readable data → MODERATE**  
+When `nature >= 0.80` AND `recip_type = unauthorized` AND `protection > 0.10`, Gate 1a returns MODERATE instead of LOW. This exception started as ransomware-specific (v8), was broadened to any malicious compromise type targeting hacker/media (v10, F5), then extended to cover all unauthorized recipients (v11, V2 — a non-hacker/media partner also triggered MODERATE). The root logic: a malicious actor cannot be assumed not to have accessed data regardless of what the mitigation says, and that applies to any unauthorized recipient. This exception does not apply when protection is de-identified (0.10) because unreadable data neutralises the risk regardless.
 
 **Rationale for the base rule:** These mitigations provide objective, verifiable proof that data never reached a harmful state. They are the only mitigations in the entire tree that give forensic or physical certainty. Radar treats them as a hard LOW overriding all other inputs — even plain text + malicious + hacker resolves LOW if data was forensically confirmed not accessed.
 
-**Why `satisfactory` lives here (not Gate 1b):** The full mitigation label is "Satisfactory assurance was obtained from a recipient that is obligated to protect personal data by law and/or contract." This is only legally meaningful when the recipient actually has that obligation — covered entities, business associates, federal agencies — AND is an authorized recipient. For recipients with no legal obligation (general public, vendor, attorney), or for unauthorized recipients regardless of their description, `satisfactory` drops to Gate 1b.
+**Why `satisfactory` lives here (not Gate 1b):** The full mitigation label is "Satisfactory assurance was obtained from a recipient that is obligated to protect personal data by law and/or contract." This is only legally meaningful when the recipient actually has that obligation — covered entities, business associates, federal agencies — AND is an authorized recipient. For recipients with no legal obligation, or for unauthorized recipients regardless of their description, `satisfactory` drops to Gate 1b.
 
-**Why `no_written_obtained` and `no_written_provided` can also fire Gate 1a:** Batch 7 (F1, F2) revealed that when these mitigations are used with an authorized legally-obligated recipient, Radar returns LOW — not MODERATE. The rationale: "no written assurance obtained" in this context means no written form was collected *because the recipient's legal obligation already provides the guarantee*. It is semantically equivalent to `satisfactory` — the obligation substitutes for the paperwork. **Important distinction:** `obligated_no_assurance` and `ce_ba_obligated` do NOT get this treatment — Q6 (batch 3) confirmed they return MODERATE even for a covered entity. The difference is that `no_written_obtained/provided` implies some assurance existed but wasn't put in writing, whereas `obligated_no_assurance` means no assurance of any kind was obtained.
+**Why `no_written_obtained` and `no_written_provided` can also fire Gate 1a:** Batch 7 (F1, F2) revealed that when these mitigations are used with an authorized legally-obligated recipient, Radar returns LOW. The rationale: "no written assurance obtained" in this context means no written form was collected because the recipient's legal obligation already provides the guarantee. It is semantically equivalent to `satisfactory`. **Important distinction:** `obligated_no_assurance` and `ce_ba_obligated` do NOT get this treatment — Q6 (batch 3) confirmed they return MODERATE even for a covered entity. The difference: `no_written_obtained/provided` implies some assurance existed but wasn't put in writing, whereas `obligated_no_assurance` explicitly says no assurance of any kind was obtained.
 
-**Why the authorized check matters:** The `recip_type === 'authorized'` guard was added in v9. Several recipient descriptions (covered_entity, ba_state_gov, federal_agency, etc.) appear in both the authorized and unauthorized dropdowns. Without the guard, an unauthorized covered entity receiving data with `satisfactory` mitigation would incorrectly resolve LOW. The guard ensures legal obligation only benefits authorized recipients.
+**Why the authorized check matters:** Several recipient descriptions (covered_entity, ba_state_gov, federal_agency, etc.) appear in both the authorized and unauthorized dropdowns. Without the guard, an unauthorized covered entity with `satisfactory` mitigation would incorrectly resolve LOW. Legal obligation only benefits authorized recipients.
 
 ---
 
@@ -69,15 +69,18 @@ When `nature ≥ 0.80` AND `recipient = hacker or media` AND `protection > 0.10`
 
 **Result:**
 - Protection = de-identified (0.10) → **LOW**
-- Protection = readable AND recipient = hacker or media AND nature ≥ 0.80 → **EXTREME**
+- Protection = readable AND recipient = hacker or media AND nature >= 0.80 → **EXTREME**
 - Protection = readable AND recipient = hacker or media AND nature < 0.80 → **HIGH**
-- Protection = readable AND all other recipients → **MODERATE**
+- Protection = readable AND any other unauthorized recipient AND nature >= 0.80 → **HIGH**
+- Protection = readable AND authorized recipient → **MODERATE**
 
 **Rationale:** These mitigations indicate data may have reached the recipient but containment was attempted through promises or legal obligation. Unlike Gate 1a, there is no proof of non-access — only assurance.
 
-**Why de-identified + assurance = LOW:** If data is de-identified, even a failed assurance causes no individual harm — the data cannot be traced back to a person. Radar applies this logic regardless of how bad the other inputs look.
+**Why de-identified + assurance = LOW:** If data is de-identified, even a failed assurance causes no individual harm — the data cannot be traced back to a person.
 
-**Why hacker/media recipients escalate beyond MODERATE (v10 change):** Batch 7 (F3, F4) showed that an assurance-level mitigation is effectively meaningless when the recipient is a hacker or media outlet — they have no legal obligation to honour it. Radar does not treat this as a generic MODERATE. Instead it escalates based on intent: if the incident was malicious (nature ≥ 0.80), the result is EXTREME; if it was not malicious, the result is HIGH. The intuition is that hacker/media recipients are structurally incapable of providing reliable containment, so the mitigation quality is irrelevant — only the threat level of the incident itself drives the severity.
+**Why hacker/media recipients escalate to EXTREME or HIGH:** An assurance-level mitigation is meaningless when the recipient is a hacker or media outlet — they have no legal obligation to honour it. Radar escalates based on intent: malicious (>=0.80) → EXTREME; not malicious → HIGH. Discovered batch 7 (F3, F4).
+
+**Why other unauthorized recipients also escalate to HIGH when malicious:** Batch 8 (V1, V3) showed that non-hacker/media unauthorized recipients — a partner and an unauthorized business associate — also return HIGH when intent is malicious and data is readable. Any unauthorized recipient receiving readable data via an assurance-only mitigation with malicious intent cannot reliably contain the data. Hacker/media remain the EXTREME sub-case; all other unauthorized malicious cases are HIGH.
 
 **Key distinction:** Gate 1a = data provably never read. Gate 1b = data may have been read but containment was attempted.
 
@@ -91,16 +94,16 @@ When `nature ≥ 0.80` AND `recipient = hacker or media` AND `protection > 0.10`
 
 | Condition | Result |
 |---|---|
-| Recipient = hacker/media AND nature = malicious (≥0.80) AND mitigation = `ransomware_confirmed` | HIGH |
-| Recipient = hacker/media AND nature = malicious (≥0.80) AND mitigation in GATE2_BAD_MIT | MODERATE |
-| Recipient = hacker/media AND nature = malicious (≥0.80) AND any other mitigation | LOW |
+| Recipient = hacker/media AND nature = malicious (>=0.80) AND mitigation = `ransomware_confirmed` | HIGH |
+| Recipient = hacker/media AND nature = malicious (>=0.80) AND mitigation in GATE2_BAD_MIT | MODERATE |
+| Recipient = hacker/media AND nature = malicious (>=0.80) AND any other mitigation | LOW |
 | Recipient = hacker/media AND nature NOT malicious (<0.80) | LOW |
 | Recipient = anything else AND mitigation = `ransomware_confirmed` | MODERATE |
 | Everything else | LOW |
 
 **GATE2_BAD_MIT** = `unable_retrieve`, `improper_use`, `sent_to_media`, `unknown_mit`, `ssn_exposed`, `ransomware_confirmed`
 
-**Rationale:** De-identified data cannot be traced back to an individual — default is LOW. Exceptions escalate only when a high-risk recipient received it with clear malicious intent. Incident nature matters here because an unintentional disclosure to media is fundamentally different from a deliberate theft by a hacker.
+**Rationale:** De-identified data cannot be traced back to an individual — default is LOW. Exceptions escalate only when a high-risk recipient received it with clear malicious intent.
 
 ---
 
@@ -119,16 +122,18 @@ When `nature ≥ 0.80` AND `recipient = hacker or media` AND `protection > 0.10`
 | Recipient type = authorized AND any other mitigation | HIGH (default) |
 
 **G3_EXTREME** = `improper_use`, `unknown_mit`, `sent_to_media`, `ssn_exposed`  
-**G3_HIGH** = `unable_retrieve`  
-**G3_MODERATE** = `confirmed_viewing`, `ransomware_confirmed`, `unsure_backup`
+**G3_HIGH** = `unable_retrieve`, `confirmed_viewing`, `ransomware_confirmed`  
+**G3_MODERATE** = `unsure_backup`
 
-**Rationale — unauthorized always EXTREME:** Unauthorized recipients (vendors, hackers, media, general public, relatives, customers) have no legal accountability for the data. Readable data reaching them in insufficient disposition is always EXTREME.
+**Rationale — unauthorized always EXTREME:** Unauthorized recipients have no legal accountability. Readable data reaching them in insufficient disposition is always EXTREME.
 
-**Rationale — authorized three-tier:** Authorized recipients (covered entities, business associates, federal agencies) have statutory obligations. Even with insufficient disposition, some constraint exists. The severity then depends on what we know happened:
+**Rationale — authorized three-tier:** Authorized recipients have statutory obligations. The severity depends on what we know happened:
 
 - **EXTREME** = confirmed serious harm: data misused, catastrophic public exposure, or completely unknown outcome
-- **HIGH** = unresolved: we could not retrieve the data and don't know what happened
-- **MODERATE** = low evidence of harm: data was seen but no misuse confirmed, or uncertainty about copies
+- **HIGH** = data was accessed or confirmed acquired, but no misuse yet confirmed — `confirmed_viewing`, `ransomware_confirmed`, `unable_retrieve`
+- **MODERATE** = genuine uncertainty: destroyed but backup/copy status unknown (`unsure_backup`) — not confirmed accessed
+
+**Why `confirmed_viewing` and `ransomware_confirmed` are HIGH, not MODERATE (v12 correction):** Originally placed in G3_MODERATE in batch 5, re-testing in batch 9 (C1, C2, C3) showed all cases return HIGH across different recipient descriptions and nature scores. The correction makes semantic sense: `confirmed_viewing` means access was confirmed (data was seen, misuse not yet detected), and `ransomware_confirmed` means data integrity is definitively at risk. Both represent a known bad outcome, not mere uncertainty. Only `unsure_backup` — where we genuinely don't know if the data was accessed — retains the MODERATE classification.
 
 ---
 
@@ -138,7 +143,7 @@ When `nature ≥ 0.80` AND `recipient = hacker or media` AND `protection > 0.10`
 
 **Result: MODERATE**
 
-**Note:** In 48 verified test cases, Gate 4 has never fired in practice. Every sufficient mitigation in Radar belongs to either Gate 1a or Gate 1b. Gate 4 is a safety net for any future mitigation option that does not fit either bucket. If it fires, investigate immediately — a new Radar option may have been added outside the current mapping.
+**Note:** In 54 verified test cases, Gate 4 has never fired in practice. Every sufficient mitigation belongs to either Gate 1a or Gate 1b. Gate 4 is a safety net — if it fires, a new Radar mitigation option exists outside current buckets and warrants immediate investigation.
 
 ---
 
@@ -150,28 +155,28 @@ Plus: `satisfactory` when `recip_type = authorized` AND recipient is in LEGALLY_
 Plus: `no_written_obtained`, `no_written_provided` when `recip_type = authorized` AND recipient is in LEGALLY_OBLIGATED
 
 ### Gate 1a exception → MODERATE (overrides LOW)
-Any of the above when `nature ≥ 0.80` AND `rec_desc = hacker or media` AND `protection > 0.10`
+Any of the above when `nature >= 0.80` AND `recip_type = unauthorized` AND `protection > 0.10`
 
-### Gate 1b (ASSURED_SAFE) → LOW (de-id) or MODERATE/HIGH/EXTREME (readable)
+### Gate 1b (ASSURED_SAFE) → varies by recipient and protection
 `permitted`, `written_obtained`, `written_provided`, `satisfactory` (non-obligated or unauthorized recipient),  
 `obligated_no_assurance`, `ce_ba_obligated`, `no_written_obtained` (non-obligated or unauthorized recipient),  
 `no_written_provided` (non-obligated or unauthorized recipient), `company_policy`
 
-Readable data result by recipient: hacker/media + malicious → EXTREME; hacker/media + not-malicious → HIGH; all others → MODERATE
+Readable data result: hacker/media + malicious → EXTREME; hacker/media + not-malicious → HIGH; other unauthorized + malicious → HIGH; authorized → MODERATE; de-identified (any) → LOW
 
 ### Gate 3 sub-buckets (authorized + insufficient only)
 
 | Bucket | Keys | Result |
 |---|---|---|
 | G3_EXTREME | `improper_use`, `unknown_mit`, `sent_to_media`, `ssn_exposed` | EXTREME |
-| G3_HIGH | `unable_retrieve` | HIGH |
-| G3_MODERATE | `confirmed_viewing`, `ransomware_confirmed`, `unsure_backup` | MODERATE |
+| G3_HIGH | `unable_retrieve`, `confirmed_viewing`, `ransomware_confirmed` | HIGH |
+| G3_MODERATE | `unsure_backup` | MODERATE |
 
 ### LEGALLY_OBLIGATED recipients (affects Gate 1a satisfactory and no-written rules)
 `covered_entity`, `business_associate`, `ba_state_gov`, `federal_agency`, `ohca`,  
 `self_insured_sponsor`, `fully_insured_sponsor`, `reg_investment_advisor`, `state_gov`, `employee`
 
-**Note:** These descriptions appear in both the authorized and unauthorized recipient dropdowns. LEGALLY_OBLIGATED membership only grants Gate 1a treatment when `recip_type = authorized`.
+**Note:** These appear in both the authorized and unauthorized dropdowns. LEGALLY_OBLIGATED membership only grants Gate 1a treatment when `recip_type = authorized`.
 
 ---
 
@@ -179,31 +184,31 @@ Readable data result by recipient: hacker/media + malicious → EXTREME; hacker/
 
 ### Why a decision tree, not a weighted score
 
-The first version used a weighted score across all 7 dimensions. It failed 3/3 on the first test batch. The core problem: Radar does not average inputs. Mitigation outcome dominates everything else. A case with the worst-possible protection, most malicious intent, and most dangerous recipient still returns LOW if forensic analysis confirmed no compromise. No weighted score can replicate that.
+The first version used a weighted score across all 7 dimensions. It failed 3/3 on the first test batch. Radar does not average inputs — mitigation outcome dominates everything else. A case with the worst-possible protection, most malicious intent, and most dangerous recipient still returns LOW if forensic analysis confirmed no compromise.
 
 ### Why mitigation is the most important input
 
-Mitigation reflects what actually happened after the breach — the outcome, not the setup. Radar is fundamentally answering "given what we now know, how much harm occurred?" rather than "given the circumstances, how likely is harm?" Even terrible inputs (ransomware, plain text, hacker) can resolve LOW if the outcome was confirmed safe.
+Mitigation reflects what actually happened after the breach — the outcome, not the setup. Radar is fundamentally answering "given what we now know, how much harm occurred?" rather than "how likely is harm given the circumstances?"
 
 ### Why `satisfactory` is split between Gate 1a and Gate 1b
 
-The word "satisfactory" in the mitigation label is modified by "from a recipient that is obligated to protect personal data by law and/or contract." That legal obligation is what makes it reliable — for legally bound authorized recipients it is equivalent to a physical confirmation, for others it is just a promise.
+The mitigation label is "Satisfactory assurance from a recipient obligated by law and/or contract." That obligation only makes it reliable for legally bound authorized recipients — for others it is just a promise.
 
-### Why `no_written_obtained/provided` can resolve LOW for obligated authorized recipients but `obligated_no_assurance` cannot
+### Why `no_written_obtained/provided` resolves LOW for obligated authorized recipients but `obligated_no_assurance` does not
 
-Both describe situations where no written form was collected. The difference is subtle but empirically confirmed: `no_written_obtained` and `no_written_provided` imply that some form of assurance existed but was not reduced to writing — the legal obligation fills the gap. `obligated_no_assurance` means no assurance of any kind was obtained at all — the label explicitly says "no assurance was obtained." Q6 (covered entity + obligated_no_assurance) confirmed MODERATE. F1/F2 (federal agency and covered entity + no_written_obtained) confirmed LOW.
+`no_written_obtained/provided` implies assurance existed but wasn't put in writing — the legal obligation fills the gap. `obligated_no_assurance` explicitly says no assurance of any kind was obtained. Q6 (covered entity + obligated_no_assurance) confirmed MODERATE. F1/F2 (federal agency and covered entity + no_written_obtained) confirmed LOW.
 
-### Why the Gate 1a exception applies to all malicious intent, not just ransomware
+### Why the Gate 1a exception applies to all unauthorized recipients, not just hacker/media
 
-Originally (v8) the exception was written specifically for `compromise = ransomware` after T2 showed ransomware + hacker + readable + unopened → MODERATE. Batch 7 (F5) showed hacking + hacker + readable + malicious + unopened also → MODERATE. The root cause is not the ransomware mechanism but the malicious intent: a bad actor deliberately targeting data cannot be assumed not to have accessed it regardless of what the mitigation says. `nature ≥ 0.80` is the correct trigger.
+Started as ransomware-specific (v8), broadened to any malicious intent + hacker/media (v10), then to all unauthorized (v11). V2 confirmed a partner also triggers MODERATE with malicious intent and readable data. The trigger is malicious intent + unauthorized status, not the specific recipient description.
 
-### Why Gate 1b escalates to EXTREME or HIGH for hacker/media recipients
+### Why Gate 1b escalates for unauthorized recipients when intent is malicious
 
-An assurance-level mitigation (promise, policy, written agreement) requires the recipient to voluntarily comply. A hacker or media outlet has no legal obligation and no incentive to honor such an assurance. Radar therefore treats the mitigation as providing no real containment and evaluates severity based purely on the threat level — malicious intent yields EXTREME, non-malicious yields HIGH.
+An unauthorized recipient has no structural incentive to honor an assurance, especially when the incident was intentional. Hacker/media are the extreme sub-case (EXTREME/HIGH by intent), but any other unauthorized + malicious scenario also escalates to HIGH. Authorized recipients stay at MODERATE because statutory obligations provide meaningful containment.
 
-### Why Gate 3 has three severity levels for authorized recipients
+### Why Gate 3 G3_MODERATE now contains only `unsure_backup`
 
-Discovered in batch 5. Previously all authorized + insufficient cases returned HIGH. Batches 4 and 5 revealed that the specific mitigation outcome within insufficient disposition changes the result — confirmed misuse is EXTREME, unresolved situation is HIGH, and low-evidence scenarios are MODERATE. The distinction reflects "what do we actually know happened?"
+`confirmed_viewing` and `ransomware_confirmed` were moved from G3_MODERATE to G3_HIGH in v12 after batch 9 re-testing confirmed all original batch 5 cases (S1, S4, S5) return HIGH. `confirmed_viewing` means access was confirmed; `ransomware_confirmed` means data integrity is at risk. Both are known bad outcomes. Only `unsure_backup` — genuine uncertainty about whether data was accessed at all — retains MODERATE.
 
 ---
 
@@ -220,7 +225,9 @@ Discovered in batch 5. Previously all authorized + insufficient cases returned H
 | v7 | 39/39 | Gate 3 authorized+insufficient splits into EXTREME / HIGH / MODERATE by mitigation |
 | v8 | 43/43 | Ransomware + hacker/media exception on Gate 1a |
 | v9 | 43/43 | Fix: Gate 1a satisfactory guard requires `recip_type = authorized`; Gate 1b dead ransomware code removed |
-| v10 | 48/48 | Fix: `no_written_obtained/provided` + authorized + obligated → LOW; Gate 1a exception broadened to `nature ≥ 0.80`; Gate 1b hacker/media escalation (HIGH/EXTREME by intent) |
+| v10 | 48/48 | Fix: `no_written_obtained/provided` + authorized + obligated → LOW; Gate 1a exception to `nature >= 0.80` + hacker/media; Gate 1b hacker/media escalation |
+| v11 | 51/51 | Gate 1a exception broadened to all unauthorized; Gate 1b: any unauthorized + malicious → HIGH |
+| v12 | 54/54 | Correction: `confirmed_viewing` and `ransomware_confirmed` moved G3_MODERATE → G3_HIGH; S1/S4/S5 corrected; `unsure_backup` is now the only G3_MODERATE key |
 
 ---
 
@@ -233,10 +240,12 @@ Discovered in batch 5. Previously all authorized + insufficient cases returned H
 | Batch 2 (N1–N9) | 9 | 9/9 | Authorized vs unauthorized split in Gate 3 |
 | Batch 3 (Q1–Q9) | 9 | 9/9 | Gate 1a/1b split discovered |
 | Batch 4 (R1–R6) | 6 | 6/6 | `satisfactory` legal-obligation rule; de-id+assurance=LOW; Gate 2 mitigation refinement |
-| Batch 5 (S1–S5) | 5 | 5/5 | Gate 3 three-tier split; N1 reading corrected |
+| Batch 5 (S1–S5) | 5 | 5/5 | Gate 3 three-tier split — **S1/S4/S5 corrected in batch 9 (MODERATE→HIGH)** |
 | Batch 6 (T1–T4) | 4 | 4/4 | Ransomware+hacker/media exception on Gate 1a |
-| Batch 7 (F1–F5) | 5 | 5/5 | no_written_obtained+obligated=LOW; Gate 1a exception broadened; Gate 1b hacker/media escalation |
-| **Total** | **48** | **48/48** | |
+| Batch 7 (F1–F5) | 5 | 5/5 | `no_written_obtained`+obligated+authorized=LOW; Gate 1a exception broadened; Gate 1b hacker/media escalation |
+| Batch 8 (V1–V3) | 3 | 3/3 | Gate 1b: other unauthorized+malicious=HIGH; Gate 1a exception extended to all unauthorized |
+| Batch 9 (C1–C3 + S1/S4/S5 corrections) | 3 new + 3 re-verified | 6/6 | `confirmed_viewing` and `ransomware_confirmed` corrected to G3_HIGH; `unsure_backup` only remaining G3_MODERATE |
+| **Total** | **54** | **54/54** | |
 
 ---
 
@@ -261,7 +270,7 @@ Mappings come directly from `Extracted_Mapping_Tables.xlsx` and match Radar exac
 
 The calculator includes two test facilities:
 
-**Regression suite (auto-runs on load):** All 48 verified cases run automatically against the current tree on page load. Results are shown in a table below the inputs. A green progress bar and 48/48 count confirm the tree is correct. If any case fails, it is highlighted in red with the expected vs actual result.
+**Regression suite (auto-runs on load):** All 54 verified cases run automatically against the current tree on page load. A green progress bar and 54/54 count confirm the tree is correct. If any case fails, it is highlighted in red with expected vs actual result shown.
 
 **Manual test log:** For new Radar cases you run empirically:
 1. Select all 7 inputs to match what you entered in Radar
@@ -269,7 +278,17 @@ The calculator includes two test facilities:
 3. Click **+ Log Current Case** — saves with MATCH or MISMATCH and the gate that fired
 4. **Export CSV** downloads the full log for offline analysis
 
-When you find a mismatch, log it, export the CSV, and use it to diagnose which gate needs a new rule. The regression suite will catch any existing case that breaks when you update the tree.
+When you find a mismatch, log it, export the CSV, and use it to diagnose which gate needs a rule change or correction. The regression suite will immediately catch any existing case that breaks when you update the tree.
+
+---
+
+## Excel Test Case Workbook
+
+`breach_risk_test_cases.xlsx` contains all 54 verified cases across three sheets:
+
+- **All Verified Cases** — every case with full inputs, v12 prediction, Radar result, and match status. Rows colour-coded by batch. Corrected cases (S1, S4, S5) flagged with amber status.
+- **Radar Re-test Checklist** — same cases with column L pre-filled with known Radar results and editable. Column M auto-calculates MATCH/MISMATCH as a formula. Amber-tinted rows indicate corrected cases to prioritise for re-verification.
+- **Batch Summary** — batch-by-batch discovery log, v12 G3 bucket change callout, severity distribution, and gate distribution across all 54 cases.
 
 ---
 
@@ -279,13 +298,13 @@ When you find a mismatch, log it, export the CSV, and use it to diagnose which g
 
 The tree only checks these structural signals — none reference label strings:
 
-1. `protection ≤ 0.10` — de-identified
-2. `disposition ≥ 0.70` — insufficient
+1. `protection <= 0.10` — de-identified
+2. `disposition >= 0.70` — insufficient
 3. `recip_type` = authorized or unauthorized
 4. `mit_key` bucket membership — CONFIRMED_SAFE, ASSURED_SAFE, NO_WRITTEN_MITS, G3_EXTREME, G3_HIGH, G3_MODERATE
-5. `nature ≥ 0.80` — malicious intent (Gates 1a, 1b, and 2)
+5. `nature >= 0.80` — malicious intent (Gates 1a, 1b, and 2)
 6. `rec_desc_key` in LEGALLY_OBLIGATED (Gate 1a satisfactory and no-written rules)
-7. `rec_desc_key` in {hacker, media} (Gate 1b escalation, Gate 2 sub-rules)
+7. `rec_desc_key` in {hacker, media} (Gate 1b hacker/media escalation, Gate 2 sub-rules)
 
 ### What changes (config layer)
 
@@ -306,13 +325,11 @@ Each region needs its own JSON config defining: protection scores, nature scores
 ## File Structure
 
 ```
-index.html                    ← single deployable file (GitHub Pages)
-README.md                     ← this file
-test_cases.json               ← all 48 verified cases with full inputs and RF results
-new_test_cases.json           ← generated test cases pending RF verification
-remaining_test_cases.csv      ← remaining cases with v10 predictions, changed cases flagged
-risk_test_log_*.csv           ← exported test logs from each testing batch
-Extracted_Mapping_Tables.xlsx ← source of truth for dropdown cascade mappings
+index.html                        <- single deployable file (GitHub Pages)
+README.md                         <- this file
+breach_risk_test_cases.xlsx       <- all 54 verified cases, re-test checklist, batch summary
+risk_test_log_*.csv               <- exported test logs from each testing batch
+Extracted_Mapping_Tables.xlsx     <- source of truth for dropdown cascade mappings
 ```
 
 ---
@@ -330,28 +347,25 @@ Fully self-contained — no backend, no build step, no npm install. Manual test 
 
 ## Remaining Testing Priorities
 
-Run new Radar cases in this order to improve coverage of known gaps:
-
-1. **Gate 1b hacker/media + `nature = 0.45` (intentional, not malicious)** — F3 confirmed HIGH for unintentional. Verify intentional-not-malicious (0.45) also returns HIGH across different ASSURED_SAFE mitigations (written_obtained, company_policy, etc.).
-2. **Gate 1b media recipient** — F3/F4 tested hacker. Run the same combinations with media as the recipient to confirm symmetry.
-3. **Gate 1a broadened exception with media** — F5 tested hacking+hacker. Run hacking+media+malicious+CONFIRMED_SAFE to confirm MODERATE.
-4. **Gate 1a `no_written_provided` + obligated** — F1/F2 verified `no_written_obtained`. Verify its sibling `no_written_provided` behaves identically for obligated authorized recipients.
+1. **Gate 3 `unsure_backup` confirmation** — now the only G3_MODERATE key. Verify it still returns MODERATE across multiple authorized recipient descriptions (CE, BA, federal agency) to confirm it was not also affected by the batch 9 correction.
+2. **Gate 1b media + malicious** — V1/V3 confirmed partner and unauthorized business_associate return HIGH. Run `media` as recipient + malicious intent + ASSURED_SAFE to confirm EXTREME (not just HIGH).
+3. **Gate 1b unauthorized + not malicious (nature = 0.45)** — verify intentional-not-malicious + unauthorized + readable + ASSURED_SAFE returns MODERATE (not HIGH), confirming malicious intent is the correct dividing line.
+4. **Gate 1a `no_written_provided` + obligated authorized** — F1/F2 verified `no_written_obtained`. Verify its sibling behaves identically.
 5. **Gate 4** — has never fired. If it fires, a new Radar mitigation option exists outside current buckets — investigate immediately.
 
 ---
 
 ## Spring Boot Integration Notes
 
-The same 5-gate structure translates directly to Java:
-
 ```java
 public String assessRisk(RiskInput input) {
     String mit = input.mitigationKey;
-    boolean isAuthorized = "authorized".equals(input.recipientType);
+    boolean isAuthorized   = "authorized".equals(input.recipientType);
+    boolean isUnauthorized = "unauthorized".equals(input.recipientType);
     boolean isLegallyObligated = LEGALLY_OBLIGATED.contains(input.recipientDesc);
-    boolean isHackerMedia = Set.of("hacker","media").contains(input.recipientDesc);
-    boolean isReadable = input.protectionScore > 0.10;
-    boolean isMalicious = input.natureScore >= 0.80;
+    boolean isHackerMedia  = Set.of("hacker","media").contains(input.recipientDesc);
+    boolean isReadable     = input.protectionScore > 0.10;
+    boolean isMalicious    = input.natureScore >= 0.80;
 
     // Gate 1a — confirmed safe
     boolean gate1aFires = CONFIRMED_SAFE.contains(mit)
@@ -359,15 +373,16 @@ public String assessRisk(RiskInput input) {
         || (NO_WRITTEN_MITS.contains(mit) && isAuthorized && isLegallyObligated);
 
     if (gate1aFires) {
-        // Broadened exception: any malicious intent + hacker/media + readable → MODERATE
-        if (isMalicious && isHackerMedia && isReadable) return "MODERATE";
+        // Exception: malicious + unauthorized + readable -> MODERATE
+        if (isMalicious && isUnauthorized && isReadable) return "MODERATE";
         return "LOW";
     }
 
     // Gate 1b — assured safe
     if (ASSURED_SAFE.contains(mit)) {
-        if (!isReadable) return "LOW";  // de-identified
-        if (isHackerMedia) return isMalicious ? "EXTREME" : "HIGH";
+        if (!isReadable) return "LOW";
+        if (isHackerMedia)               return isMalicious ? "EXTREME" : "HIGH";
+        if (isUnauthorized && isMalicious) return "HIGH";
         return "MODERATE";
     }
 
@@ -380,6 +395,18 @@ public String assessRisk(RiskInput input) {
     // Gate 4 — fallthrough
     return "MODERATE";
 }
+
+private String assessGate3(RiskInput input) {
+    if ("unauthorized".equals(input.recipientType)) return "EXTREME";
+    if (G3_EXTREME.contains(input.mitigationKey))   return "EXTREME";
+    if (G3_HIGH.contains(input.mitigationKey))      return "HIGH";    // confirmed_viewing, ransomware_confirmed, unable_retrieve
+    if (G3_MODERATE.contains(input.mitigationKey))  return "MODERATE"; // unsure_backup only
+    return "HIGH"; // default for authorized + insufficient + unmapped mitigation
+}
+
+// v12 bucket sets
+static final Set<String> G3_HIGH     = Set.of("unable_retrieve","confirmed_viewing","ransomware_confirmed");
+static final Set<String> G3_MODERATE = Set.of("unsure_backup");
 ```
 
-Bucket sets are Java `Set<String>` constants. No formulas, no weights — only set membership checks and two numeric threshold comparisons (`≤ 0.10` and `≥ 0.70`).
+No formulas, no weights — only set membership checks and two numeric threshold comparisons (`<= 0.10` and `>= 0.70`).
