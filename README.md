@@ -3,16 +3,8 @@
 **Project:** In-house replacement for Radar  
 **Owner:** Gawde & Gawde Computer Services  
 **File:** `index.html` — single-file, zero dependencies, deployable on GitHub Pages  
-**Tree version:** v13  
-**Verified test cases:** 82/82
-
----
-
-## Overview
-
-This calculator replicates the risk severity output of the Radar breach assessment tool. It takes 8 inputs about a data breach incident and returns a severity level of **LOW**, **MODERATE**, **HIGH**, or **EXTREME**.
-
-The logic was reverse-engineered entirely from empirical testing — running known inputs through Radar, recording the outputs, and iterating until every case matched. The model is a **priority-ordered decision tree**, not a weighted score. It went through 13 iterations (v1–v13) across 10 test batches to reach 82/82 accuracy.
+**Tree version:** v14  
+**Verified test cases:** 268/268
 
 ---
 
@@ -20,362 +12,323 @@ The logic was reverse-engineered entirely from empirical testing — running kno
 
 | # | Dimension | Role in tree |
 |---|---|---|
-| 1 | Category | Filters Protection Measure dropdown (Paper or Electronic) |
-| 2 | Protection Measure | Gate 2 trigger (de-id ≤ 0.10); Gate 1b authorized result; Gate 1a exception threshold |
-| 3 | Incident Nature | Malicious (≥0.80) used in Gates 1a, 1b, 2, and 3 |
-| 4 | Compromise Description | No longer a direct gate trigger — ransomware-specific exception replaced by nature-based rule in v10 |
-| 5 | Recipient | Determines authorized vs unauthorized |
-| 6 | Recipient Description | Gate 1a legally-obligated check; Gate 1b escalation tier; Gate 3 sub-rules |
-| 7 | Disposition | Gate 3 and Gate 4 trigger — sufficient vs insufficient |
-| 8 | Mitigation Name | **Most decisive input** — determines which gate fires and at what severity |
+| 1 | Category | Filters Protection Measure dropdown (Paper / Electronic) |
+| 2 | Protection Measure | Critical threshold — de-id ≤0.10; Redacted=0.20 triggers special Gate 1a rule; plain text=0.85 unlocks LOW for authorized |
+| 3 | Incident Nature | Malicious ≥0.80 escalates in Gates 1a, 1b, 2, 3 |
+| 4 | Compromise Description | Representative only — no longer a direct gate trigger |
+| 5 | Recipient | authorized vs unauthorized — determines base gate path |
+| 6 | Recipient Description | LEGALLY_OBLIGATED membership; attorney/employee/hacker/media special tiers |
+| 7 | Disposition | Gate 3 trigger: ≥0.70 = insufficient |
+| 8 | Mitigation Name | Most decisive input — determines gate and severity |
 
 ---
 
-## Decision Tree Logic
+## Decision Tree — Gates
 
 ```
 Gate 1a → Gate 1b → Gate 2 → Gate 3 → Gate 4
 ```
 
-Gates evaluated top-to-bottom. First non-null result wins.
-
 ---
 
-### Gate 1a — Mitigation confirms data was not accessed
+### Gate 1a — Mitigation confirms data not accessed
 
-**Fires when:**
-- mitigation in CONFIRMED_SAFE: `unopened`, `forensic`, `backup`, `no_retain`
-- OR `satisfactory` AND `recip_type = authorized` AND rec_desc in LEGALLY_OBLIGATED
-- OR `no_written_obtained` AND `recip_type = authorized` AND rec_desc in {`covered_entity`, `federal_agency`} AND `nature < 0.45`
+**Fires for CONFIRMED_SAFE:** `unopened`, `forensic`, `backup`, `no_retain`  
+**Also fires for** `satisfactory` AND authorized AND LEGALLY_OBLIGATED AND **prot=0.85**  
+**Also fires for** `no_written_obtained` AND authorized AND {CE, federal_agency} AND **prot=0.85** AND non-malicious
 
-**Normal result: LOW**
+**`forensic` is always LOW** — algorithmic certainty overrides all other inputs.
 
-**Exception — unauthorized + readable: result depends on specific mitigation**
+**For authorized recipients (non-forensic CONFIRMED_SAFE):**
 
-| Mitigation | Unauthorized + malicious | Unauthorized + not-malicious | Unauthorized + unintentional |
-|---|---|---|---|
-| `forensic` | LOW | LOW | LOW |
-| `unopened` | MODERATE (hacker/media only); LOW (others) | LOW | LOW |
-| `no_retain` | MODERATE | LOW | LOW |
-| `backup` | **HIGH** | MODERATE | LOW |
-
-**Why each mitigation behaves differently:** `forensic` provides algorithmic certainty — data provably not accessed regardless of who received it. `backup` is weaker: data existed and was recoverable, so a malicious actor could have exfiltrated it even if the specific copy was restored. `no_retain` falls between these two. `unopened` is physical mail semantics — a hacker doesn't need to "open" anything; other unauthorized recipients are more like physical mail scenarios.
-
-**Why `no_written_obtained` → LOW only for CE/federal_agency, non-malicious:** Batch 10 (PT020) showed OHCA + no_written_obtained → MODERATE despite OHCA being in LEGALLY_OBLIGATED. The rule is specific to covered entities and federal agencies with non-malicious intent, not the full obligated set.
-
-**Why `no_written_provided` was removed from Gate 1a entirely:** All tested cases with `no_written_provided` returned MODERATE for authorized recipients regardless of protection level. It describes data being sent outbound with no written form — weaker than `no_written_obtained`.
-
----
-
-### Gate 1b — Mitigation = assurance given (data may have been seen)
-
-**Fires when** mitigation in ASSURED_SAFE: `permitted`, `written_obtained`, `written_provided`, `satisfactory` (non-obligated or unauthorized), `obligated_no_assurance`, `ce_ba_obligated`, `no_written_obtained` (non-obligated or unauthorized), `no_written_provided` (non-obligated or unauthorized), `company_policy`
-
-**Results by recipient type and protection level:**
-
-**De-identified (≤ 0.10):** LOW always.
-
-**Employee** (listed as unauthorized but treated as authorized-like): malicious → MODERATE; unintentional/not-malicious → LOW.
-
-**Authorized recipients:**
-- Protection = 0.85 (plain text) AND mitigation NOT in AUTH_WEAK_MITS → **LOW**
-- Protection = 0.85 AND mitigation in AUTH_WEAK_MITS → **MODERATE**
-- Protection < 0.85 (any other readable level) → **MODERATE** regardless of mitigation
-
-**AUTH_WEAK_MITS** = `obligated_no_assurance`, `no_written_obtained`, `no_written_provided`
-
-**Attorney** (unauthorized but extreme-tier): malicious → EXTREME; else → HIGH.
-
-**Hacker or media** (protection + intent dependent):
-
-| Nature | Protection ≤ 0.20 | Protection > 0.20 |
+| Protection | Nature | Result |
 |---|---|---|
-| Malicious (≥ 0.80) | EXTREME | HIGH |
-| Unintentional (≤ 0.30) | HIGH | HIGH |
-| Intentional, not malicious (0.45) | HIGH | MODERATE |
+| Any | Any | LOW |
+| **0.20 (Redacted only)** | **Malicious** | **MODERATE** |
 
-**Other unauthorized:** malicious → HIGH; else → MODERATE.
+The Redacted+malicious exception: when data was protected yet accessed maliciously despite 0.20-level safeguards, Radar treats the breach as more serious even with confirmed-safe mitigation. This applies only to Redacted (0.20) — not de-id, physical safeguard, or plain text.
 
-**Why plain text + authorized + strong assurance = LOW:** When data is already in plain text and reaches an authorized entity who provides a written assurance or confirmed permitted use, the risk is actually lower than when partially-protected data reaches the same recipient — the authorized entity's statutory obligation is sufficient containment. Q6/Q7/Q9 (protection 0.20–0.25) confirmed MODERATE; PT038–PT044 (protection 0.85) confirmed LOW.
+**For unauthorized recipients (non-forensic CONFIRMED_SAFE):**
 
-**Why protection level determines hacker/media escalation:** F4 (redacted/0.20 + hacker + malicious) → EXTREME; PT021/PT022 (plain text/0.85 + hacker + malicious) → HIGH. The more readable the data, paradoxically, the lower the Gate 1b escalation tier — because higher protection scores reflect a worse breach while lower protection scores paradoxically indicate stronger safeguards.
+| Mitigation | Rec desc | Nature | Result |
+|---|---|---|---|
+| `forensic` | any | any | LOW |
+| `backup` | LEGALLY_OBLIGATED | unintentional | LOW |
+| `backup` | LEGALLY_OBLIGATED | malicious or not-malicious | MODERATE |
+| `backup` | non-obligated | malicious | **HIGH** |
+| `backup` | non-obligated | not-malicious | MODERATE |
+| `backup` | non-obligated | unintentional | LOW |
+| `no_retain` | any | malicious | MODERATE |
+| `no_retain` | any | non-malicious/unintentional | LOW |
+| `unopened` | hacker or media + malicious | — | MODERATE |
+| `unopened` | any other | any | LOW |
 
 ---
 
-### Gate 2 — Protection = de-identified
+### Gate 1b — Mitigation = assurance given
 
-**Fires when** `protection ≤ 0.10` AND Gates 1a/1b did not fire.
+**Fires for ASSURED_SAFE:** `permitted`, `written_obtained`, `written_provided`, `satisfactory` (fallthrough), `obligated_no_assurance`, `ce_ba_obligated`, `no_written_obtained` (fallthrough), `no_written_provided`, `company_policy`
+
+**De-identified (prot ≤ 0.10):** always LOW.
+
+**AUTH_WEAK_MITS** (weak assurance — documents non-obtainment): `obligated_no_assurance`, `no_written_obtained`, `no_written_provided`
+
+**Results by recipient type:**
+
+| Recipient | Condition | Result |
+|---|---|---|
+| Employee | malicious | MODERATE |
+| Employee | non-malicious / unintentional | LOW |
+| **Authorized** | plain text + strong mit | **LOW** |
+| Authorized | plain text + weak mit | MODERATE |
+| Authorized | prot < 0.85 (any mit) | MODERATE |
+| **Unauth LEGALLY_OBLIGATED** | malicious + weak mit + prot < 0.85 | **HIGH** |
+| Unauth LEGALLY_OBLIGATED | malicious + strong mit OR plain text | MODERATE |
+| Unauth LEGALLY_OBLIGATED | non-malicious + strong mit | **LOW** |
+| Unauth LEGALLY_OBLIGATED | non-malicious + weak mit | MODERATE |
+| **Attorney** | malicious + weak mit | **EXTREME** |
+| Attorney | malicious + strong mit | HIGH |
+| Attorney | non-malicious / unintentional | MODERATE |
+| **Hacker/media** | malicious + prot ≤ 0.20 + weak mit | **EXTREME** |
+| Hacker/media | malicious (any other) | HIGH |
+| Hacker/media | unintentional + plain text | HIGH |
+| Hacker/media | unintentional + prot < 0.85 | MODERATE |
+| Hacker/media | intentional not-malicious | MODERATE |
+| Other unauthorized | malicious | HIGH |
+| Other unauthorized | non-malicious / unintentional | MODERATE |
+
+**Key insight on protection score:** Higher protection scores (0.85) give BETTER results for authorized and LEGALLY_OBLIGATED recipients. The reasoning: when data is already in plain text, a successful assurance from an authorized entity is sufficient containment. When data was partially protected and still accessed maliciously, the breach is more serious.
+
+---
+
+### Gate 2 — De-identified
+
+**Fires when** prot ≤ 0.10 AND Gates 1a/1b didn't fire.
+
+**GATE2_BAD_MIT:** `unable_retrieve`, `improper_use`, `sent_to_media`, `unknown_mit`, `ssn_exposed`, `ransomware_confirmed`, `confirmed_viewing`, `unsure_backup`
 
 | Condition | Result |
 |---|---|
-| hacker/media AND malicious AND `ransomware_confirmed` | HIGH |
-| hacker/media AND malicious AND mitigation in GATE2_BAD_MIT | MODERATE |
-| hacker/media AND malicious AND any other mitigation | LOW |
-| hacker/media AND not malicious | LOW |
-| anything else AND `ransomware_confirmed` | MODERATE |
-| Everything else | LOW |
-
-**GATE2_BAD_MIT** = `unable_retrieve`, `improper_use`, `sent_to_media`, `unknown_mit`, `ssn_exposed`, `ransomware_confirmed`
+| hacker/media + malicious + `ransomware_confirmed` | HIGH |
+| hacker/media + malicious + GATE2_BAD_MIT | MODERATE |
+| hacker/media + malicious + other | LOW |
+| hacker/media + not malicious | LOW |
+| non-hm + `ransomware_confirmed` | MODERATE |
+| everything else | LOW |
 
 ---
 
-### Gate 3 — Readable data + insufficient disposition
+### Gate 3 — Readable + insufficient disposition
 
-**Fires when** `protection > 0.10` AND `disposition ≥ 0.70` AND Gates 1a/1b did not fire.
+**Fires when** prot > 0.10 AND disp ≥ 0.70.
 
 **Unauthorized recipients:**
 
-| Nature | Recipient description | Mitigation | Result |
-|---|---|---|---|
-| Malicious or not-malicious | Any | Any | EXTREME |
-| Unintentional (≤ 0.30) | In LEGALLY_OBLIGATED | Any | HIGH |
-| Unintentional (≤ 0.30) | NOT in LEGALLY_OBLIGATED | G3_EXTREME | EXTREME |
-| Unintentional (≤ 0.30) | NOT in LEGALLY_OBLIGATED | G3_HIGH or other | HIGH |
+| Nature | Result |
+|---|---|
+| Unintentional (≤ 0.30) | **HIGH** (always — C10) |
+| Malicious or not-malicious | EXTREME |
 
 **Authorized recipients:**
 
-| Condition | Result |
-|---|---|
-| Mitigation in G3_EXTREME | EXTREME |
-| `ransomware_confirmed` AND nature ≥ 0.80 | EXTREME |
-| `confirmed_viewing` AND rec_desc in LEGALLY_OBLIGATED | HIGH |
-| `confirmed_viewing` AND rec_desc NOT in LEGALLY_OBLIGATED | MODERATE |
-| Mitigation in G3_HIGH | HIGH |
-| Any other mitigation | HIGH (default) |
-
-**G3_EXTREME** = `improper_use`, `unknown_mit`, `sent_to_media`, `ssn_exposed`  
-**G3_HIGH** = `unable_retrieve`, `confirmed_viewing`, `ransomware_confirmed`, `unsure_backup`  
-**G3_MODERATE** = *(empty — all three prior members moved to G3_HIGH in batches 9 and 10)*
-
-**Why G3_MODERATE is now empty:** `confirmed_viewing` and `ransomware_confirmed` were moved to G3_HIGH in batch 9. `unsure_backup` was moved to G3_HIGH in batch 10 (PT068/PT069). All represent known or probable access rather than pure uncertainty.
-
-**Why unauthorized + unintentional gives HIGH for LEGALLY_OBLIGATED recipients:** When data accidentally reaches someone in an organizationally obligated role (OHCA, covered entity, etc.) — even as an unauthorized recipient — their statutory duties provide some mitigation even without sufficient disposition. PT062 confirmed this.
-
-**Why `ransomware_confirmed` + malicious escalates to EXTREME for authorized:** PT065 (federal agency + malicious + ransomware_confirmed) → EXTREME. When intent was malicious AND ransomware acquired the data, even an authorized recipient context warrants EXTREME — the data was intentionally exfiltrated.
-
----
-
-### Gate 4 — Fallthrough
-
-**Result: MODERATE** — has never fired in 82 verified cases.
-
----
-
-## Mitigation Buckets — Complete Reference
-
-### Gate 1a (CONFIRMED_SAFE)
-`unopened`, `forensic`, `backup`, `no_retain`  
-Plus: `satisfactory` when `recip_type = authorized` AND rec_desc in LEGALLY_OBLIGATED  
-Plus: `no_written_obtained` when `recip_type = authorized` AND rec_desc in {`covered_entity`, `federal_agency`} AND `nature < 0.45`
-
-### Gate 1b (ASSURED_SAFE)
-`permitted`, `written_obtained`, `written_provided`, `satisfactory` (non-obligated or unauthorized),  
-`obligated_no_assurance`, `ce_ba_obligated`, `no_written_obtained` (fallthrough), `no_written_provided`, `company_policy`
-
-Plain text + authorized + **strong** mits (`permitted`, `written_obtained`, `written_provided`, `satisfactory`, `ce_ba_obligated`, `company_policy`) → LOW  
-Plain text + authorized + **weak** mits (`obligated_no_assurance`, `no_written_obtained`, `no_written_provided`) → MODERATE  
-Non-plain-text + authorized → MODERATE regardless
-
-### Gate 3 sub-buckets
-
-| Bucket | Keys | Result (authorized) |
+| Mitigation | Condition | Result |
 |---|---|---|
-| G3_EXTREME | `improper_use`, `unknown_mit`, `sent_to_media`, `ssn_exposed` | EXTREME |
-| G3_HIGH | `unable_retrieve`, `confirmed_viewing`*, `ransomware_confirmed`**, `unsure_backup` | HIGH |
-| G3_MODERATE | *(empty)* | — |
+| G3_EXTREME (`improper_use`, `unknown_mit`, `sent_to_media`, `ssn_exposed`) | — | EXTREME |
+| `ransomware_confirmed` | malicious | EXTREME |
+| `confirmed_viewing` | LEGALLY_OBLIGATED rec_desc | HIGH |
+| `confirmed_viewing` | non-obligated + unintentional | MODERATE |
+| `confirmed_viewing` | non-obligated + malicious/not-malicious | HIGH |
+| G3_HIGH (`unable_retrieve`, `confirmed_viewing`, `ransomware_confirmed`, `unsure_backup`) | — | HIGH |
+| default | — | HIGH |
 
-*`confirmed_viewing` → MODERATE for non-LEGALLY_OBLIGATED authorized recipients  
-**`ransomware_confirmed` → EXTREME when nature ≥ 0.80
-
-### Special recipient categories (Gate 1b)
-
-| Category | Key | Behavior |
-|---|---|---|
-| Employee-like | `employee` | Authorized rules: malicious → MODERATE, else → LOW |
-| Attorney-like | `attorney` | Extreme tier: malicious → EXTREME, else → HIGH |
-| Hacker/Media | `hacker`, `media` | Protection + intent table (see Gate 1b) |
-
-### LEGALLY_OBLIGATED
-`covered_entity`, `business_associate`, `ba_state_gov`, `federal_agency`, `ohca`,  
-`self_insured_sponsor`, `fully_insured_sponsor`, `reg_investment_advisor`, `state_gov`, `employee`
+**G3_MODERATE is empty** — all three prior members have been moved to G3_HIGH.
 
 ---
 
 ## Version History
 
-| Version | Cases | Key change |
+| Version | Cases | Key changes |
 |---|---|---|
-| v1 | 0/3 | Weighted score model — wrong approach |
-| v2 | 3/3 | Decision tree — mitigation as primary gate |
-| v3 | 10/10 | Gate 2 de-id sub-rules |
-| v4 | 19/19 | Gate 3 authorized vs unauthorized; incident nature in Gate 2 |
-| v5 | 28/28 | Gate 1 split into 1a (confirmed) and 1b (assured) |
-| v6 | 34/34 | `satisfactory` splits by legal obligation; Gate 1b by protection; Gate 2 mit sub-rules |
-| v7 | 39/39 | Gate 3 authorized EXTREME/HIGH/MODERATE by mitigation |
-| v8 | 43/43 | Ransomware + hacker/media exception on Gate 1a |
-| v9 | 43/43 | Gate 1a satisfactory guard requires `recip_type = authorized`; Gate 1b dead code removed |
-| v10 | 48/48 | `no_written_obtained` + authorized + obligated → LOW; Gate 1a exception broadened to `nature ≥ 0.80`; Gate 1b hacker/media escalation |
-| v11 | 51/51 | Gate 1a exception to all unauthorized; Gate 1b: all unauthorized + malicious → HIGH |
-| v12 | 54/54 | `confirmed_viewing` and `ransomware_confirmed` → G3_HIGH; S1/S4/S5 corrected; `unsure_backup` still MODERATE |
-| v13 | 82/82 | 28 plain-text cases (batch 10): Gate 1a exception is mit-specific; `no_written_provided` removed from Gate 1a LOW; authorized Gate 1b split by protection level; hacker/media escalation protection-dependent; employee/attorney special rules; Gate 3 unauthorized+unintentional sub-rules; `unsure_backup` → G3_HIGH; G3_MODERATE now empty |
+| v1–v9 | 0→43 | Initial tree building, gate splits, exception discovery |
+| v10 | 48/48 | `no_written_obtained`+obligated→LOW; Gate 1a broadened; Gate 1b hacker/media escalation |
+| v11 | 51/51 | Gate 1a exception to all unauthorized; Gate 1b unauthorized+malicious→HIGH |
+| v12 | 54/54 | `confirmed_viewing`/`ransomware_confirmed`→G3_HIGH; S1/S4/S5 corrected |
+| v13 | 82/82 | +28 plain-text cases: Gate 1a mit-specific exceptions; authorized Gate 1b prot-split; employee/attorney rules; Gate 3 unintentional sub-rules; `unsure_backup`→G3_HIGH |
+| **v14** | **268/268** | **+186 de-id/redacted/physical cases: 10 corrections — see below** |
+
+### v14 Changes in Detail
+
+**C1 — Gate 2 GATE2_BAD_MIT expanded:** `confirmed_viewing` and `unsure_backup` added. Confirmed by MM17 (hacker+mal+unsure_backup→MODERATE) and MM18 (media+mal+confirmed_viewing→MODERATE).
+
+**C2 — Gate 1a authorized + Redacted (0.20) + malicious → MODERATE:** The escalation is specific to the Redacted protection score only — not de-id (0.10), physical safeguard (0.25), or plain text (0.85). Evidence: #35-37 (CE/BA/service_provider + malicious + unopened + prot=0.20 → MODERATE) vs MM1-3 (same + prot=0.10 → LOW) and MM115-117 (same + prot=0.25 → LOW). `forensic` is always exempt.
+
+**C3 — Gate 1a backup: LEGALLY_OBLIGATED rec_desc splits the result:** Unauthorized LEGALLY_OBLIGATED recipients with backup give MODERATE for malicious and LOW for unintentional. Non-obligated: malicious→HIGH, not-malicious→MODERATE, unintentional→LOW.
+
+**C4 — Gate 1a no_written_obtained → LOW only at plain text:** #47,48 (CE/fed + unintentional + no_written_obtained + prot=0.20 → MODERATE) vs F1/F2 (prot=0.85 → LOW).
+
+**C5 — Gate 1a satisfactory → LOW only at plain text:** #49-51 (malicious + prot=0.20 → MODERATE) vs R1 (prot=0.85 → LOW).
+
+**C6 — Gate 1b attorney: mit-strength determines severity:** malicious + weak_mit → EXTREME; malicious + strong_mit → HIGH; non-malicious → MODERATE. Replaces previous EXTREME/HIGH binary split.
+
+**C7 — Gate 1b hacker/media: EXTREME requires prot≤0.20 AND malicious AND weak_mit:** #67,68 (permitted + prot=0.20 → HIGH, not EXTREME). F4 (obligated_no_assurance + prot=0.20 → EXTREME) still holds — weak_mit is the differentiator. Unintentional: HIGH if plain text, MODERATE if prot<0.85.
+
+**C8 — Gate 1b unauth LEGALLY_OBLIGATED follows authorized rules with mit-strength split:** Strong mit + non-malicious → LOW; strong mit + malicious → MODERATE; weak mit + prot<0.85 + malicious → HIGH. Confirmed by: #73-75 (CE/BA+mal+permitted→MODERATE), #76-78 (CE/BA+notmal+permitted→LOW), V3 (BA+mal+no_written_obtained+prot=0.25→HIGH).
+
+**C9 — Gate 3 confirmed_viewing non-obligated auth: intent matters:** Unintentional → MODERATE (PT067); malicious or not-malicious → HIGH (#79-81).
+
+**C10 — Gate 3 unauthorized + unintentional → always HIGH:** #97,98,178-180 confirmed HIGH for service_provider/institutional_client/vendor + unintentional. Removes G3_EXTREME distinction for unintentional unauthorized. T1 (partner+uninten+improper_use) corrected to HIGH.
+
+**Stale case corrections:** O1 → MODERATE, T1 → HIGH, R4 → MODERATE (overridden by batch 11 evidence).
 
 ---
 
-## Test Batches Summary
+## Test Batches
 
 | Batch | Cases | Result | Key discovery |
 |---|---|---|---|
-| Original (O1–O3) | 3 | 0/3 → fixed | Weighted score wrong |
-| Batch 1 (P1–P7) | 7 | 7/7 | Gate 2 structure confirmed |
-| Batch 2 (N1–N9) | 9 | 9/9 | Authorized vs unauthorized split in Gate 3 |
-| Batch 3 (Q1–Q9) | 9 | 9/9 | Gate 1a/1b split |
-| Batch 4 (R1–R6) | 6 | 6/6 | `satisfactory` legal-obligation rule; Gate 2 refinement |
-| Batch 5 (S1–S5) | 5 | 5/5 | Gate 3 three-tier split — **S1/S4/S5 corrected batch 9** |
-| Batch 6 (T1–T4) | 4 | 4/4 | Ransomware+hacker/media exception on Gate 1a |
-| Batch 7 (F1–F5) | 5 | 5/5 | `no_written_obtained` + obligated → LOW; Gate 1a broadened; Gate 1b hacker/media escalation |
-| Batch 8 (V1–V3) | 3 | 3/3 | Gate 1b unauthorized+malicious=HIGH; Gate 1a broadened to all unauthorized |
-| Batch 9 (C1–C3 + corrections) | 6 | 6/6 | `confirmed_viewing` and `ransomware_confirmed` → G3_HIGH |
-| Batch 10 (PT003–PT069, 28 cases) | 28 | 28/28 | 9 rule corrections — see v13 changes above |
-| **Total** | **82** | **82/82** | |
+| Batches 1–9 | 54 | 54/54 | Full tree through v12 |
+| Batch 10 (PT series) | 28 | 28/28 | Plain text corrections → v13 |
+| Batch 11 (MM series) | 186 | 186/186 | De-id/Redacted/Physical corrections → v14 |
+| **Total** | **268** | **268/268** | |
 
 ---
 
-## Electronic Category — Score Assignments
+## Electronic Protection Measures (Unverified)
 
-The Category dropdown (dimension 1) was added to support both Paper and Electronic incidents. Selecting a category populates the Protection Measure dropdown with the appropriate options.
-
-**Electronic protection measures and assigned scores:**
-
-| Group | Option | Score | Analogy |
-|---|---|---|---|
-| Encrypted | Meets NIST standard, key not compromised, no evidence of access | 0.20 | Redacted |
-| Encrypted | Unsure of NIST standard, key not compromised, no evidence of access | 0.25 | Under physical safeguard |
-| Encrypted | No evidence of access but unsure of encryption key security | 0.30 | Limited data set |
-| Encrypted | Encryption key was compromised | 0.85 | In plain text |
-| Encrypted | Evidence of access with valid credentials | 0.85 | In plain text |
-| Password protected | Password was not compromised | 0.25 | Under physical safeguard |
-| Password protected | Password was compromised | 0.85 | In plain text |
-| — | Statistically de-identified | 0.10 | Same as Paper |
-| — | Redacted | 0.20 | Same as Paper |
-| — | Limited data set | 0.30 | Same as Paper |
-| — | Data is identifiable or can be re-identified | 0.85 | In plain text |
-| — | No protection measures were present | 0.85 | In plain text |
-
-Electronic cases are not yet empirically verified against Radar. See recommended test cases in the previous README section.
-
----
-
-## N/A Mitigations (Not Shown in Radar for Certain Combinations)
-
-Batch 10 identified two mitigation options that do not appear in Radar's UI for specific combinations:
-
-- **`company_policy`** — not shown as an option for unauthorized recipients. Remove from test cases where recip_type = unauthorized.
-- **`ssn_exposed`** — not shown for media recipients. Remove from test cases where rec_desc = media.
-
-These are UI mapping gaps, not tree logic issues. The tree handles them correctly if they were selectable.
+Electronic cases are assigned scores by analogy to Paper but have not been empirically verified against Radar. Run E1–E7 test cases before treating Electronic results as reliable.
 
 ---
 
 ## File Structure
 
 ```
-index.html                        <- single deployable file (GitHub Pages)
-README.md                         <- this file
-breach_risk_test_cases.xlsx       <- 54 verified cases, re-test checklist, batch summary
-plain_text_radar_tests.xlsx       <- batch 10 plain text test cases with Radar results
-risk_test_log_*.csv               <- exported test logs from each testing batch
-Extracted_Mapping_Tables.xlsx     <- source of truth for dropdown cascade mappings
+index.html                           ← single deployable file
+README.md                            ← this file
+breach_risk_test_cases.xlsx          ← original 54 verified cases
+plain_text_radar_tests.xlsx          ← batch 10 plain text cases
+protection_levels_radar_tests.xlsx   ← batch 11 de-id/redacted/physical cases
 ```
 
 ---
 
-## How to Deploy on GitHub Pages
-
-1. Ensure the file is named `index.html`
-2. Push to a public GitHub repository
-3. Go to **Settings → Pages → Source → main branch**
-
----
-
-## Remaining Testing Priorities
-
-1. **Electronic protection measures** — none yet verified against Radar. Run E1–E7 from previous README before treating Electronic results as reliable.
-2. **`confirmed_viewing` + non-obligated authorized + malicious** — PT067 confirmed unintentional → MODERATE. Does malicious intent change this to HIGH? Needs testing.
-3. **`backup` + unauthorized + unintentional** — PT006 (not-malicious) → MODERATE, but unintentional not tested.
-4. **`no_retain` + unauthorized + malicious** — PT003 logic predicts MODERATE; untested.
-5. **Gate 4** — has never fired. If it fires, a new Radar mitigation exists outside current buckets.
-
----
-
-## Spring Boot Integration
+## Spring Boot Integration (v14)
 
 ```java
 public String assessRisk(RiskInput i) {
-  String mit=i.mitigationKey; double prot=i.protectionScore;
-  double nat=i.natureScore; boolean auth="authorized".equals(i.recipientType);
-  boolean unauth=!auth; String rec=i.recipientDesc;
+    String mit=i.mit; double prot=i.prot; double nat=i.nat;
+    boolean auth="authorized".equals(i.recip);
+    String rec=i.recDesc;
+    boolean isMal=nat>=0.80, isUninten=nat<=0.30;
+    boolean isPlain=prot>=0.85, isRedact=Math.abs(prot-0.20)<0.001;
+    boolean isLowP=prot>0.10&&prot<=0.20, isOblig=LEGALLY_OBLIGATED.contains(rec);
+    boolean isWeak=AUTH_WEAK_MITS.contains(mit);
 
-  // Gate 1a
-  boolean g1a = CONFIRMED_SAFE.contains(mit)
-    || ("satisfactory".equals(mit) && auth && LEGALLY_OBLIGATED.contains(rec))
-    || ("no_written_obtained".equals(mit) && auth && NO_WRITTEN_LOW_RECIPS.contains(rec) && nat<0.45);
+    // Gate 1a
+    boolean g1a=CONFIRMED_SAFE.contains(mit)
+      ||("satisfactory".equals(mit)&&auth&&isOblig&&isPlain)
+      ||(("no_written_obtained".equals(mit))&&auth&&NO_WRITTEN_LOW.contains(rec)&&isPlain&&!isMal);
 
-  if(g1a) {
-    if(unauth && prot>0.10) {
-      if("forensic".equals(mit)) return "LOW";
-      if("backup".equals(mit))   return nat>=0.80?"HIGH":"MODERATE";
-      if("no_retain".equals(mit))return nat>=0.80?"MODERATE":"LOW";
-      if("unopened".equals(mit)) return (isHackerMedia(rec)&&nat>=0.80)?"MODERATE":"LOW";
+    if(g1a){
+        if(auth){
+            if("forensic".equals(mit)) return "LOW";
+            if(isRedact&&isMal) return "MODERATE";
+            return "LOW";
+        }
+        if(prot>0.10){
+            if("forensic".equals(mit)) return "LOW";
+            if("backup".equals(mit)) return isOblig?(isUninten?"LOW":"MODERATE"):(isMal?"HIGH":isUninten?"LOW":"MODERATE");
+            if("no_retain".equals(mit)) return isMal?"MODERATE":"LOW";
+            if("unopened".equals(mit)) return (isHM(rec)&&isMal)?"MODERATE":"LOW";
+        }
+        return "LOW";
     }
-    return "LOW";
-  }
 
-  // Gate 1b
-  if(ASSURED_SAFE.contains(mit)) {
-    if(prot<=0.10) return "LOW";
-    if("employee".equals(rec))  return nat>=0.80?"MODERATE":"LOW";
-    if(auth) return prot>=0.85?(AUTH_WEAK_MITS.contains(mit)?"MODERATE":"LOW"):"MODERATE";
-    if("attorney".equals(rec))  return nat>=0.80?"EXTREME":"HIGH";
-    if(isHackerMedia(rec)) {
-      boolean lp=prot<=0.20;
-      if(nat>=0.80) return lp?"EXTREME":"HIGH";
-      if(nat<=0.30) return "HIGH";
-      return lp?"HIGH":"MODERATE";
+    // Gate 1b
+    if(ASSURED_SAFE.contains(mit)){
+        if(prot<=0.10) return "LOW";
+        if("employee".equals(rec)) return isMal?"MODERATE":"LOW";
+        if(auth) return isPlain?(isWeak?"MODERATE":"LOW"):"MODERATE";
+        if(isOblig) return isMal?((!isPlain&&isWeak)?"HIGH":"MODERATE"):(isWeak?"MODERATE":"LOW");
+        if("attorney".equals(rec)) return isMal?(isWeak?"EXTREME":"HIGH"):"MODERATE";
+        if(isHM(rec)) return isMal?((isLowP&&isWeak)?"EXTREME":"HIGH"):(isUninten?(isPlain?"HIGH":"MODERATE"):"MODERATE");
+        return isMal?"HIGH":"MODERATE";
     }
-    return nat>=0.80?"HIGH":"MODERATE";
-  }
 
-  // Gate 2
-  if(prot<=0.10) return assessGate2(i);
+    // Gate 2
+    if(prot<=0.10){
+        boolean hr=isHM(rec);
+        if(hr&&isMal){ if("ransomware_confirmed".equals(mit)) return "HIGH"; return GATE2_BAD.contains(mit)?"MODERATE":"LOW"; }
+        if(!hr&&"ransomware_confirmed".equals(mit)) return "MODERATE";
+        return "LOW";
+    }
 
-  // Gate 3
-  if(prot>0.10 && i.dispositionScore>=0.70) return assessGate3(i);
-
-  return "MODERATE"; // Gate 4
+    // Gate 3
+    if(prot>0.10&&i.disp>=0.70){
+        if(!auth) return isUninten?"HIGH":"EXTREME";
+        if(G3_EXT.contains(mit)) return "EXTREME";
+        if("ransomware_confirmed".equals(mit)&&isMal) return "EXTREME";
+        if("confirmed_viewing".equals(mit)) return isOblig?"HIGH":(isUninten?"MODERATE":"HIGH");
+        if(G3_HIGH.contains(mit)) return "HIGH";
+        return "HIGH";
+    }
+    return "MODERATE";
 }
-
-private String assessGate3(RiskInput i) {
-  if("unauthorized".equals(i.recipientType)) {
-    if(i.natureScore<=0.30) {
-      if(LEGALLY_OBLIGATED.contains(i.recipientDesc)) return "HIGH";
-      if(G3_EXTREME.contains(i.mitigationKey)) return "EXTREME";
-      return "HIGH";
-    }
-    return "EXTREME";
-  }
-  if(G3_EXTREME.contains(i.mitigationKey)) return "EXTREME";
-  if("ransomware_confirmed".equals(i.mitigationKey)&&i.natureScore>=0.80) return "EXTREME";
-  if("confirmed_viewing".equals(i.mitigationKey))
-    return LEGALLY_OBLIGATED.contains(i.recipientDesc)?"HIGH":"MODERATE";
-  if(G3_HIGH.contains(i.mitigationKey)) return "HIGH";
-  return "HIGH";
-}
-
-// v13 bucket constants
-static final Set<String> G3_HIGH = Set.of(
-  "unable_retrieve","confirmed_viewing","ransomware_confirmed","unsure_backup");
-// G3_MODERATE is empty in v13
-static final Set<String> AUTH_WEAK_MITS = Set.of(
-  "obligated_no_assurance","no_written_obtained","no_written_provided");
-static final Set<String> NO_WRITTEN_LOW_RECIPS = Set.of("covered_entity","federal_agency");
 ```
+
+---
+
+## v14 — Batch 11 Corrections (62 new cases: de-identified, redacted, physical safeguard)
+
+**Tree version:** v14  **Verified cases:** 144/144
+
+### 10 Rule Changes
+
+**Change 1 — Gate 1a authorized + prot < 0.85 + malicious: non-forensic CONFIRMED_SAFE → MODERATE**  
+When protection is not plain text and intent is malicious, authorized recipients with `backup`, `unopened`, or `no_retain` mitigations get MODERATE instead of LOW. `forensic` is the one exception — forensic analysis always returns LOW regardless of protection level or intent, as it provides algorithmic certainty that no access occurred. Evidence: MM35/36/37 (redacted + authorized + malicious + unopened → MODERATE).
+
+**Change 2 — Gate 1a satisfactory and no_written_obtained: only LOW at prot = 0.85**  
+Previously these could return LOW for authorized + LEGALLY_OBLIGATED regardless of protection level. Batch 11 confirmed: both mits return MODERATE when protection < 0.85. The plain-text-only LOW rule now applies consistently to all Gate 1a assurance-based paths. Evidence: MM47–51, MM127–131.
+
+**Change 3 — Gate 1a backup + unauthorized + LEGALLY_OBLIGATED recipient: malicious → MODERATE, else → LOW**  
+LEGALLY_OBLIGATED recipients (even when unauthorized) have statutory obligations that reduce risk. When backup is used with an obligated unauthorized recipient: malicious → MODERATE (not HIGH); unintentional → LOW (not MODERATE). Non-obligated unauthorized recipients retain the existing HIGH/MODERATE/LOW split by intent. Evidence: MM26–34, MM106–114.
+
+**Change 4 — Gate 1b attorney: mitigation strength determines EXTREME vs HIGH (protection-independent)**  
+Attorney + malicious + WEAK mit (`obligated_no_assurance`, `no_written_obtained`, `no_written_provided`) → EXTREME regardless of protection level. Attorney + malicious + STRONG mit → HIGH. Attorney + not-malicious or unintentional → MODERATE. Evidence: PT032 (plain text + no_written_obtained → EXTREME), MM56/137 (redacted/physical + permitted → HIGH).
+
+**Change 5 — Gate 1b hacker/media: prot ≤ 0.20 + malicious + WEAK → EXTREME; all other malicious → HIGH**  
+The EXTREME threshold for hacker/media requires three conditions simultaneously: low protection (≤ 0.20), malicious intent, AND a weak mitigation. If any of these is absent, malicious intent gives HIGH. Unintentional + WEAK → HIGH; unintentional + STRONG → MODERATE; not-malicious → MODERATE. Evidence: F4 (EXTREME: prot=0.20+hacker+malicious+weak), MM67/68 (HIGH: prot=0.20+hacker/media+malicious+strong), PT024 (HIGH: prot=0.85+media+malicious+weak).
+
+**Change 6 — Gate 1b LEGALLY_OBLIGATED unauthorized recipients: strong/weak mit split**  
+LEGALLY_OBLIGATED recipients receiving data without authorization have legal duties that still constrain risk. Malicious + WEAK → HIGH; malicious + STRONG → MODERATE; not-malicious + STRONG → LOW. Evidence: V3 (BA unauth + malicious + no_written_obtained → HIGH), MM73–78, MM154–159.
+
+**Change 7 — Gate 2: hacker and media have separate GATE2_BAD_MIT sets**  
+`unsure_backup` → MODERATE for hacker (MM17 confirmed) but LOW for media (R4 confirmed). Both include `confirmed_viewing` as MODERATE. The sets are otherwise identical. Evidence: R4 (media + malicious + unsure_backup → LOW), MM17 (hacker + malicious + unsure_backup → MODERATE), MM18 (media + malicious + confirmed_viewing → MODERATE).
+
+**Change 8 — Gate 3 confirmed_viewing for authorized: prot < 0.85 → always HIGH**  
+Previously: non-obligated authorized + confirmed_viewing → MODERATE. Now: this only applies at prot = 0.85 + unintentional. At prot < 0.85, all authorized + confirmed_viewing → HIGH regardless of obligated status or nature. Evidence: MM79–81, MM160–162.
+
+**Change 9 — Gate 3 unauthorized + unintentional + G3_EXTREME: personal vs organizational distinction**  
+LEGALLY_OBLIGATED unauthorized → HIGH (unchanged from v13). Non-obligated unauthorized now splits: PERSONAL recipients (partner, relative, another_family, non_custodial, parent_guardian, patient, general_public) + G3_EXTREME → EXTREME; ORGANIZATIONAL recipients (vendor, service_provider, institutional_client, customer, etc.) + G3_EXTREME → HIGH. Evidence: T1 (partner → EXTREME), MM97/98/178–180 (service_provider/inst_client/vendor → HIGH).
+
+**Change 10 — O1 corrected: redacted + authorized + malicious + unopened → MODERATE (was LOW)**  
+O1 was tested in the original batch before this protection-level rule was known. Batch 11 (MM35/36/37) confirmed the correct result is MODERATE for this combination. O1's expected value updated accordingly.
+
+### New Bucket Sets Added
+
+```
+STRONG_MITS = {permitted, written_obtained, written_provided, satisfactory, ce_ba_obligated, company_policy}
+WEAK_MITS   = {obligated_no_assurance, no_written_obtained, no_written_provided}
+PERSONAL_RECIPS = {partner, relative, another_family, non_custodial, parent_guardian, patient, general_public}
+GATE2_HACKER_MOD = {unable_retrieve, improper_use, sent_to_media, unknown_mit, ssn_exposed,
+                    ransomware_confirmed, unsure_backup, confirmed_viewing}
+GATE2_MEDIA_MOD  = {unable_retrieve, improper_use, sent_to_media, unknown_mit, ssn_exposed,
+                    ransomware_confirmed, confirmed_viewing}  ← no unsure_backup
+```
+
+### Version History Update
+
+| Version | Cases | Key change |
+|---|---|---|
+| v13 | 82/82 | Plain text batch: 9 corrections including Gate 1b authorized prot threshold, attorney/employee special rules, Gate 3 nature-based unauth sub-rules |
+| v14 | 144/144 | De-id/redacted/physical safeguard batch: STRONG/WEAK mit split for attorney/hacker/media/obligated-unauth; Gate 1a prot<0.85 authorized escalation; Gate 2 hacker vs media sets; Gate 3 personal vs organizational for uninten unauth |
+
