@@ -862,7 +862,14 @@ footer {
           <div class="hiw-step-title">Protection level determines whether data was readable</div>
           <div class="hiw-step-desc">
             If the data was statistically de-identified, the risk is inherently low — no individual can be identified even if the data was accessed. This produces <strong>LOW in most cases</strong>, with only narrow exceptions for confirmed ransomware or hacker/media recipients with malicious intent.<br><br>
-            All other protection levels (redacted, encrypted, plain text) are treated as "readable" — the exact level matters less than whether it crossed into the hands of the wrong recipient.
+            For electronic records, protection strength is now classified into tiers before scoring:
+            <ul style="margin:8px 0 8px 18px;line-height:1.7">
+              <li><strong>De-identified / Encrypted (NIST-grade, key intact)</strong> — treated as de-identified strength; produces LOW in most paths</li>
+              <li><strong>Redacted</strong> — partial protection; low-moderate risk tier</li>
+              <li><strong>Encrypted (standard uncertain or key security unknown) / Password not compromised / Physical safeguard / Limited data set</strong> — mid-tier; readable for gate purposes but less severe than plain text</li>
+              <li><strong>Encrypted (key compromised or access confirmed) / Password compromised / Plain text / No protection</strong> — fully readable; highest risk tier</li>
+            </ul>
+            The tier affects which gates fire and at what thresholds — strong encryption can suppress EXTREME outcomes the same way de-identification does, while a compromised key is treated identically to plain text.
           </div>
         </div>
       </div>
@@ -906,7 +913,7 @@ footer {
       </div>
 
       <div class="hiw-note">
-        <strong>About this tool:</strong> This calculator was built by reverse-engineering RadarFirst through 54 empirically verified test cases across 9 batches. Each rule corresponds to an observed Radar output, not an assumption. When you find a mismatch, log it — every new case helps refine the model further.
+        <strong>About this tool:</strong> This calculator was built by reverse-engineering RadarFirst through 268 verified test cases across 11 batches. Each rule corresponds to an observed Radar output, not an assumption. Electronic protection measures (encryption, password protection) are classified into risk tiers before scoring — strong encryption with an intact key is treated at de-identified strength, while a compromised key is treated as plain text. When you find a mismatch, log it — every new case helps refine the model further.
       </div>
 
     </div>
