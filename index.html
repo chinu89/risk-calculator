@@ -1016,6 +1016,12 @@ const CONFIRMED_SAFE=new Set(['unopened','forensic','backup','no_retain']);
 const ASSURED_SAFE=new Set(['permitted','written_obtained','written_provided','satisfactory','obligated_no_assurance','ce_ba_obligated','no_written_obtained','no_written_provided','company_policy']);
 const STRONG_MITS=new Set(['permitted','written_obtained','written_provided','satisfactory','ce_ba_obligated','company_policy']);
 const WEAK_MITS=new Set(['obligated_no_assurance','no_written_obtained','no_written_provided']);
+// Used by renderResult() state summary panel only — not gate logic
+const EMPLOYEE_LIKE=new Set(['employee']);
+const ATTORNEY_LIKE=new Set(['attorney']);
+const NO_WRITTEN_LOW_RECIPS=new Set(['covered_entity','federal_agency']);
+const NO_WRITTEN_MITS=new Set(['no_written_obtained','no_written_provided']);
+const GATE2_BAD_MIT=new Set(['unable_retrieve','improper_use','sent_to_media','unknown_mit','ssn_exposed','ransomware_confirmed','unsure_backup','confirmed_viewing']);
 const GATE2_HACKER_MOD=new Set(['unable_retrieve','improper_use','sent_to_media','unknown_mit','ssn_exposed','ransomware_confirmed','unsure_backup','confirmed_viewing']);
 const GATE2_MEDIA_MOD=new Set(['unable_retrieve','improper_use','sent_to_media','unknown_mit','ssn_exposed','ransomware_confirmed','confirmed_viewing']);
 const G3_EXTREME=new Set(['improper_use','unknown_mit','sent_to_media','ssn_exposed']);
@@ -1144,6 +1150,73 @@ const TREE_STEPS=[
    }},
 ];
 
+// ── Protection Classification Layer ──────────────────────────────────────────
+// Maps the human-readable option label from d_protection into a named bucket,
+// then maps that bucket to the numeric score used by the gate logic.
+// ONLY called from calc() — regression suite bypasses this and passes numeric
+// protection values directly to assessState(), so 268 cases are unaffected.
+
+function classifyProtection(label) {
+  if (!label || label.startsWith('—') || label.startsWith('─')) return null;
+
+  // ── Encrypted ────────────────────────────────────────────────────────────
+  // Strong: NIST-grade, key intact, no evidence of access
+  if (label === 'Encrypted — Meets NIST standard, key not compromised, no evidence of access')
+    return 'ENCRYPTED_STRONG';
+
+  // Uncertain: standard unsure but key not compromised, no access evidence
+  if (label === 'Encrypted — Unsure of NIST standard, key not compromised, no evidence of access')
+    return 'ENCRYPTED_UNCERTAIN';
+
+  // Uncertain: standard may be fine but key security is unknown
+  if (label === 'Encrypted — No evidence of access but unsure of encryption key security')
+    return 'ENCRYPTED_UNCERTAIN';
+
+  // Weak: key was compromised
+  if (label === 'Encrypted — Encryption key was compromised')
+    return 'ENCRYPTED_WEAK';
+
+  // Weak: evidence of actual access (key effectively compromised in practice)
+  if (label === 'Encrypted — Evidence of access with valid credentials')
+    return 'ENCRYPTED_WEAK';
+
+  // ── Password protected ───────────────────────────────────────────────────
+  if (label === 'Password protected — Password was not compromised')
+    return 'PASSWORD_STRONG';
+
+  if (label === 'Password protected — Password was compromised')
+    return 'PASSWORD_WEAK';
+
+  // ── Existing named types (paper + electronic "Other") ────────────────────
+  if (label === 'Statistically de-identified')   return 'DEIDENTIFIED';
+  if (label === 'Redacted')                       return 'REDACTED';
+  if (label === 'Limited data set')               return 'PARTIAL';
+  if (label === 'Under physical safeguard')       return 'PARTIAL';
+
+  // Plain-text equivalents
+  if (label === 'In plain text')                              return 'PLAIN_TEXT';
+  if (label === 'Data is identifiable or can be re-identified') return 'PLAIN_TEXT';
+  if (label === 'No protection measures were present')        return 'PLAIN_TEXT';
+
+  // Fallback: treat unknown labels as plain text (safest, most conservative)
+  return 'PLAIN_TEXT';
+}
+
+function mapProtectionBucketToScore(bucket) {
+  switch (bucket) {
+    case 'DEIDENTIFIED':        return 0.10;
+    case 'REDACTED':            return 0.20;
+    case 'ENCRYPTED_STRONG':    return 0.10;  // treated as de-identified strength
+    case 'ENCRYPTED_UNCERTAIN': return 0.25;  // mid-tier uncertainty
+    case 'PASSWORD_STRONG':     return 0.25;  // same as physical safeguard tier
+    case 'PARTIAL':             return 0.30;
+    case 'ENCRYPTED_WEAK':      return 0.85;  // key gone = plain text risk
+    case 'PASSWORD_WEAK':       return 0.85;  // password gone = plain text risk
+    case 'PLAIN_TEXT':          return 0.85;
+    default:                    return 0.85;  // unknown = worst case
+  }
+}
+
 function assessState(s){
   for(const step of TREE_STEPS){const r=step.eval(s);if(r!==null) return{finalSev:r,firedGate:step.id}}
   return{finalSev:null,firedGate:null};
@@ -1156,7 +1229,11 @@ function sevClass(s){return{LOW:'sev-low',MODERATE:'sev-mod',HIGH:'sev-high',EXT
 function sevColor(s){return{LOW:'#059669',MODERATE:'#D97706',HIGH:'#EA580C',EXTREME:'#DC2626'}[s]||'#4F6EF7'}
 
 function calc(){
-  const prot=parseFloat(document.getElementById('d_protection').value)||null;
+  const d_protection=document.getElementById('d_protection');
+  const label=d_protection.options[d_protection.selectedIndex]?.text||'';
+  const protectionBucket=classifyProtection(label);
+  const prot=protectionBucket!==null?mapProtectionBucketToScore(protectionBucket):null;
+  console.log({protectionLabel:label,protectionBucket,prot});
   const nat=parseFloat(document.getElementById('d_nature').value)||null;
   const comp=document.getElementById('d_compromise').value||null;
   const recip=document.getElementById('d_recipient').value||null;
