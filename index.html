@@ -1138,7 +1138,10 @@ const TREE_STEPS=[
        }
        return 'EXTREME';
      }
-     if(G3_EXTREME.has(s.mit_key)) return 'EXTREME';
+     if(G3_EXTREME.has(s.mit_key)) {
+       if(uninten&&obl) return 'HIGH';
+       return 'EXTREME';
+     }
      if(s.mit_key==='ransomware_confirmed'&&mal) return 'EXTREME';
      if(s.mit_key==='confirmed_viewing'){
        if(plain&&uninten&&!obl) return 'MODERATE';
