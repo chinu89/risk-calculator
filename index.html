@@ -613,7 +613,7 @@ footer {
       <span class="version-chip">v14 · 144 verified</span>
     </div>
     <h1>Risk Assessment Calculator</h1>
-    <p class="subtitle">Select all 8 dimensions · compare against RadarFirst · log discrepancies</p>
+    <p class="subtitle">Select all 8 dimensions · compare against Radar · log discrepancies</p>
   </div>
   <div class="header-actions">
     <button class="btn-how" onclick="openModal()">
@@ -759,14 +759,14 @@ footer {
       </div>
 
       <div class="compare">
-        <div class="compare-label">RadarFirst output</div>
+        <div class="compare-label">Radar output</div>
         <div class="compare-btns">
           <button class="sev-btn" data-sev="LOW"      onclick="setRadar('LOW')">LOW</button>
           <button class="sev-btn" data-sev="MODERATE" onclick="setRadar('MODERATE')">MOD</button>
           <button class="sev-btn" data-sev="HIGH"     onclick="setRadar('HIGH')">HIGH</button>
           <button class="sev-btn" data-sev="EXTREME"  onclick="setRadar('EXTREME')">EXT</button>
         </div>
-        <div class="match-result" id="match-result">select RadarFirst output above</div>
+        <div class="match-result" id="match-result">select Radar output above</div>
       </div>
 
     </div>
@@ -794,7 +794,7 @@ footer {
             <thead><tr>
               <th>#</th><th>Category</th><th>Protection</th><th>Incident</th><th>Compromise</th>
               <th>Recipient Desc</th><th>Disposition</th><th>Mitigation</th>
-              <th>Gate</th><th>Ours</th><th>RadarFirst</th><th>Match</th><th></th>
+              <th>Gate</th><th>Ours</th><th>Radar</th><th>Match</th><th></th>
             </tr></thead>
             <tbody id="log-body"></tbody>
           </table>
@@ -826,7 +826,7 @@ footer {
   </div>
 </div>
 
-<footer>Breach Risk Assessment Calculator · Gawde &amp; Gawde Computer Services · v14 · Built to replace RadarFirst</footer>
+<footer>Breach Risk Assessment Calculator · Gawde &amp; Gawde Computer Services · v14 · Built to replace Radar</footer>
 </div><!-- /wrap -->
 
 <!-- ── How it works modal ────────────────────────────────────────── -->
@@ -842,7 +842,7 @@ footer {
     <div class="modal-body">
 
       <div class="hiw-intro">
-        The calculator replicates <strong>RadarFirst's breach assessment logic</strong> — reverse-engineered from 54 verified test cases. It uses a <strong>priority-ordered decision tree</strong>, not a weighted average. One dominant factor can override all others. The key question Radar is answering is: <em>given what we now know happened, how much harm actually occurred?</em>
+        The calculator replicates <strong>Radar's breach assessment logic</strong> — reverse-engineered from 54 verified test cases. It uses a <strong>priority-ordered decision tree</strong>, not a weighted average. One dominant factor can override all others. The key question Radar is answering is: <em>given what we now know happened, how much harm actually occurred?</em>
       </div>
 
       <div class="hiw-step">
@@ -913,7 +913,7 @@ footer {
       </div>
 
       <div class="hiw-note">
-        <strong>About this tool:</strong> This calculator was built by reverse-engineering RadarFirst through 268 verified test cases across 11 batches. Each rule corresponds to an observed Radar output, not an assumption. Electronic protection measures (encryption, password protection) are classified into risk tiers before scoring — strong encryption with an intact key is treated at de-identified strength, while a compromised key is treated as plain text. When you find a mismatch, log it — every new case helps refine the model further.
+        <strong>About this tool:</strong> This calculator was built by reverse-engineering Radar through 268 verified test cases across 11 batches. Each rule corresponds to an observed Radar output, not an assumption. Electronic protection measures (encryption, password protection) are classified into risk tiers before scoring — strong encryption with an intact key is treated at de-identified strength, while a compromised key is treated as plain text. When you find a mismatch, log it — every new case helps refine the model further.
       </div>
 
     </div>
@@ -1331,7 +1331,7 @@ function renderResult(r){
 function setRadar(sev){radarResult=sev;document.querySelectorAll('.sev-btn').forEach(b=>{b.className='sev-btn';if(b.dataset.sev===sev)b.classList.add('sel-'+sev)});updateMatch()}
 function updateMatch(){
   const el=document.getElementById('match-result');
-  if(!radarResult){el.textContent='select RadarFirst output above';el.className='match-result';return}
+  if(!radarResult){el.textContent='select Radar output above';el.className='match-result';return}
   if(!currentResult?.finalSev){el.textContent='complete all inputs to compare';el.className='match-result';return}
   if(currentResult.finalSev===radarResult){el.textContent='✔  MATCH — '+currentResult.finalSev;el.className='match-result match'}
   else{el.textContent='✘  MISMATCH — Ours: '+currentResult.finalSev+'  RF: '+radarResult;el.className='match-result mismatch'}
@@ -1404,7 +1404,7 @@ function renderLog(){
 function clearLog(){if(!confirm('Clear all '+testLog.length+' test cases?'))return;testLog=[];localStorage.setItem('riskLog_v14',JSON.stringify(testLog));renderLog()}
 function exportCSV(){
   if(!testLog.length){alert('No cases to export.');return}
-  const h=['#','Category','Protection','Incident Nature','Compromise','Recipient Description','Disposition','Mitigation','Gate Fired','Our Result','RadarFirst','Match'];
+  const h=['#','Category','Protection','Incident Nature','Compromise','Recipient Description','Disposition','Mitigation','Gate Fired','Our Result','Radar','Match'];
   const r=testLog.map((e,i)=>[i+1,`"${e.category||''}"`,`"${e.protection}"`,`"${e.nature}"`,`"${e.compromise}"`,`"${e.rec_desc}"`,`"${e.disposition}"`,`"${e.mitigation}"`,`"${e.gate||''}"`,e.ours,e.radar,e.match]);
   const csv=[h,...r].map(x=>x.join(',')).join('\n');
   const a=document.createElement('a');a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
